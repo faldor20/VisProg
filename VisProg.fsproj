@@ -6,6 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Node.fs" />
+    <Compile Include="Executer.fs" />
+    <Compile Include="Test2.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

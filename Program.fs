@@ -4,6 +4,12 @@ open System
 open TypeShape.Core
 open FSharp.Control.Reactive
 open System.Collections.Generic
+open FSharp.Quotations
+open FSharp.Quotations.DerivedPatterns
+open FSharp.Quotations.Patterns
+open Microsoft.FSharp.Reflection
+open VisProg.Node
+open VisProg.Executer
 //type Node=
 //|Single of SingleNode
 //|MultiForward of NodeBase<Type list,Node list ,Node >
@@ -55,122 +61,58 @@ open System.Collections.Generic
 //    OutputType:Type
 //    next:Node List
 //    }
-type Node ={
-    Fn:obj
-    InputType:Type list
-    OutputType:Type
-    mutable Next: Node list 
-    Last:Node option array 
-}
-let createNode<'T > (a:'T)  =
-    match shapeof<'T> with
-    |Shape.FSharpFunc x->
-        let rec getInputs (fn:IShapeFSharpFunc) inputs=
-            let newInputs=fn.Domain.Type::inputs
-            match fn.CoDomain with
-            | Shape.FSharpFunc x->
-                    getInputs x newInputs
-            |output->(newInputs,output)
-        let inputs,output=getInputs x []
-        printfn "type:%A"x
-        printfn "inputs %A"inputs
-        //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
-        {Fn=a;InputType=inputs;OutputType=output.Type;Next=[];Last=Array.create inputs.Length None}
-let start a ()=a
-let createFirstNode<'a> (a:IObservable<obj>)=
-    {Fn=start a;InputType=[];OutputType=typeof<'a>;Next=[];Last=Array.empty;}
-
-//NOTE: it is very important that we not use the copy then update aproach of records. this will cause us to loose our refernce
-let join inputNum  (dest:Node) (source:Node) =
-    if source.OutputType.IsAssignableTo(dest.InputType.[inputNum]) then
-        dest.Last.[inputNum]<-Some source
-        source.Next<-dest::source.Next 
-    else failwith (sprintf"OH no, the output type of %A does not match the input type of %A " source dest)
-let disconnect inputNum  dest source =
-    dest.Last.[inputNum]<-None
-    source.Next<- source.Next|>List.except [dest]
 
 let add a b =
+    printfn("add")
     a+b
 let multiply a b=
+    printfn("mulit")
     a*b
 let plus1 a=
+    printfn("plus1")
     a+1
-let cos (a:Int64)=
+let cos (a:int)=
     a|>float|>Math.Cos|>int
-let ender=createNode (printfn "from the observable%A") 
-let middle = createNode cos
 
-let starter= createFirstNode<Int64> ( (Observable.timerSpanPeriod(TimeSpan.FromSeconds(2.0),TimeSpan.FromSeconds(1.0)))|>Observable.map(fun x->x:>obj))  
-starter|>join 0 middle 
-middle|>join 0 ender
+/// Evaluates expression untyped
+let rec eval = function
+    | Value(v,t) -> v
+    | Coerce(e,t) -> eval e
+    | NewObject(ci,args) -> ci.Invoke(evalAll args)
+    | NewArray(t,args) -> 
+        let array = Array.CreateInstance(t, args.Length) 
+        args |> List.iteri (fun i arg -> array.SetValue(eval arg, i))
+        box array
+    | NewUnionCase(case,args) -> FSharpValue.MakeUnion(case, evalAll args)
+    | NewRecord(t,args) -> FSharpValue.MakeRecord(t, evalAll args)
+    | NewTuple(args) ->
+        let t = FSharpType.MakeTupleType [|for arg in args -> arg.Type|]
+        FSharpValue.MakeTuple(evalAll args, t)
+    | FieldGet(Some(Value(v,_)),fi) -> fi.GetValue(v)
+    | PropertyGet(None, pi, args) -> pi.GetValue(null, evalAll args)
+    | PropertyGet(Some(x),pi,args) -> pi.GetValue(eval x, evalAll args)
+    | Call(None,mi,args) -> mi.Invoke(null, evalAll args)
+    | Call(Some(x),mi,args) -> mi.Invoke(eval x, evalAll args)
+    | arg -> raise <| NotSupportedException(arg.ToString())
+and evalAll args = [|for arg in args -> eval arg|]
 
-let rec curry (f:obj) a=
-    match a with 
-    |[]->
-        f
-    |head::tail->
-        let fn=f:?> ('a->'b)
-        curry (fn head) tail
-let sortTuple (a :( int*'a )list)=
-    a
-    |>List.sortBy fst
-    |>List.map snd
+let timer= System.Timers.Timer(1000.0)
+timer.Start();
+timer.Elapsed|>Observable.subscribe(fun x-> printfn "timer went off");
+let obsv=timer.Elapsed|>Observable.map(fun x-> printfn"step1"; x )|>Observable.map (fun x-> x.SignalTime.Second*10)
 
-type ScheduleStatus<'T>=
-    |Waiting of (Node*IObservable<'T> list)
-    |Scehduled of IObservable<'T>
-let runner (startingNode:Node)=
-    let mutable waiting= new Dictionary<Node,(int*IObservable<'h>)list>()
-    let input a= (a.Fn:?>(unit->IObservable<'a>))()
+let ender=createNode (printfn "from the observable %A") 
+let middleb= createNode (multiply)
+let middlea1 = createNode (multiply 2)
+let middlea2=createNode (plus1)
+let starter= createFirstNode<Int32> ( obsv|>Observable.map box)  
+starter|>join 0 middlea1
+starter|>join 0 middlea2
+middlea1|>join 0 middleb
+middlea2|>join 1 middleb 
+middleb|>join 0 ender
 
-    ///This appreach usises an up and down appreoach. we go up till a multi input node then back down untill a start to hook iup evverything beore that node
-    /// A simpler approach may be to go till we find a multi input node then just add the previous node to a dictionary with the key as the multi input node
-    ///then we start again at another starting node
-    /// once all the starting nodes are run out we run throught the nodes stored in the dictionary
-    ///repeate untill the dictionary is empty, meaning that all node paths are complete.
-    let rec run (last:IObservable<'a>) lastNode (node:Node):'j list =
-        printfn "running from node %A"node
-        ///This function allwos ust to traverse to a strat and the start running again.
-        /// we use this to makse sure all the inputs for multi input functions are hooked up.
-        let rec backwards (backNode:Node)=
-            if backNode.Last.Length=0 then
-                backNode.Next|>List.collect(fun next-> run (input backNode) backNode next ) 
-            else backwards node
-        match node.Last.Length with
-        |1->
-            let obsv=last|>Observable.map (unbox node.Fn)
-            node.Next
-            |>List.collect (run obsv node )
-            
-        |_ -> 
-            //TODO: i ned to make sure order is maintained here
-            if (Array.TrueForAll(node.Last,(fun x->true))) then 
-                let lastNodes= node.Last|>Array.map(fun x->x.Value)
-                
-                if waiting.ContainsKey node then 
-                    if waiting.[node].Length = node.InputType.Length-1 then
-                        let mapped=
-                            waiting.[node]
-                            |>sortTuple
-                            |>List.toArray
-                            |>Observable.zipArray
-                            |>Observable.map (fun args->(curry node.Fn (args|>Seq.toList)))
-                        node.Next|>List.collect(run mapped node)
-                    else 
-                        waiting.[node]<-(lastNodes|>Array.findIndex(fun x->x=lastNode),last)::waiting.[node]
-                        []
-                else 
-                    waiting.[node]<-(lastNodes|>Array.findIndex(fun x->x=lastNode),last)::waiting.[node]
-                    lastNodes|>Array.toList|>List.collect(backwards)
-            else 
-                raise (new System.ArgumentException(sprintf "The node '%A' did not have all its inputs filled. inputs %A " node node.Last))
-                
-    printfn "starting running from node%A" startingNode
-    startingNode.Next|>List.collect(fun next-> run (input startingNode) startingNode next )
-    |>List.iter(fun x->x|>Observable.wait)
-
-            
+   
             
             
 
@@ -178,7 +120,12 @@ let runner (startingNode:Node)=
 // Define a function to construct a message to print
 let from whom =
     sprintf "from %s" whom
-
+let test()=
+    let a=obsv|>Observable.map (fun x->x*2)
+    let b= a|>Observable.map (fun x->x*3)
+    let c= a|>Observable.map (fun y->printfn "aaaayyyeee%A" y)
+    let d= b|>Observable.map (printfn "hiii%A")
+    [|d;c|]|>Observable.zipArray|> Observable.wait
 [<EntryPoint>]
 let main argv =
     let message = from "F#" // Call the function
@@ -192,7 +139,10 @@ let main argv =
     |Shape.FSharpFunc x -> 
         printfn "domain:%A" x.Domain
         printfn "codomain:%A" x.CoDomain
+    //printfn "run test %A" (VisProg.Test2.run())
     runner starter
+    //test()
+    Async.RunSynchronously<|Async.Sleep 10000
     //as we can see her the domain is allways the first input type and the codomain is the rest. This is becase of currying.
     // this means that a simple way of implimenting multi-input nodes is to just nest two nodes inside one another
     //the nodes are allways doing a kind of currying.
