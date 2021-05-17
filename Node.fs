@@ -88,17 +88,53 @@ let dynamicFunction fn a=
     |ObjectWasNotAFunction x->failwith "tred to invoke an obect that was not a function %A"x
 let a= typeof<FSharpFunc<int,int>>
 let genType=a.GetGenericTypeDefinition()
-type Node ={
+(* type Node ={
     ID:Guid
     Fn:obj
     InputType:Type list
     OutputType:Type
     mutable Next: Node list 
     Last:Node option array 
-}
+} *)
 
-let createNode<'T> (a:'T)  =
-    match shapeof<'T> with
+//using inheritance we seem to be able to get a combination of genric and type safe operations.
+type Node (Fn,inputTypes,outputTypes,Next,last)=
+    member x.ID:Guid=Guid.NewGuid()
+    member x.Fn:obj=Fn
+    member x.InputType:Type list =inputTypes
+    member x.OutputType:Type=outputTypes
+    member val Next: Node list =Next with get,set
+    member x.Last:Node option array=last 
+
+type Node<'T> (Fn,inputTypes,outputTypes)=
+    inherit Node(Fn,inputTypes,outputTypes,[],(Array.init inputTypes.Length (fun x->None)))
+    member x.Fn:'T=Fn
+type FirstNode<'T> (Fn:IObservable<'T>)=
+    inherit Node<IObservable<'T>>(Fn,[],typeof<'T>)
+    member x.Fn:IObservable<'T>=Fn
+type Node<'U,'V> (Fn:'U->'V,inputTypes,outputTypes)=
+    inherit Node<'U->'V>(Fn,inputTypes,outputTypes)
+    member x.Fn:'U->'V=Fn
+
+type Node<'T,'U,'V> (Fn:'T->'U->'V,inputTypes,outputTypes)=
+    inherit Node<'T,'U->'V>(Fn,inputTypes,outputTypes)
+    member x.Fn:'T->'U->'V=Fn
+   
+        
+(* 
+let ac = Node<int,int> ((fun x->x+1),[],typeof<int>)
+let ag = Node<'a,'b> ((fun x->x+1.0),[],typeof<int>)
+let a:Node list=[ac;ag]
+let args= (1,2)
+let res:list<obj>=
+    a|>List.map(fun x->
+        match x with
+        | :? Node<_,_,_> as triFunc->
+             args||>triFunc.Fn
+        |_->failwith "dang"
+    ) *)
+let createNode (a:'T->'U)  :Node<'T,'U>=
+    match shapeof<'T->'U> with
     |Shape.FSharpFunc x->
         let rec getInputs (fn:IShapeFSharpFunc) inputs=
             let newInputs=fn.Domain.Type::inputs
@@ -110,18 +146,20 @@ let createNode<'T> (a:'T)  =
         printfn "type:%A"x
         printfn "inputs %A"inputs
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
-        {Fn=a;InputType=inputs;OutputType=output.Type;Next=[];Last=Array.create inputs.Length None;ID=Guid.NewGuid()}
+        Node<'T,'U>(a,inputs,output.Type)
+    |a->failwith  (sprintf"tried to create node with object :%A type of %A" a (a.GetType()))
+let createFirstNode<'T> (a:IObservable<'T>)= 
+    FirstNode(a)
+
 let start a ()=a
-let createFirstNode<'a> (a:IObservable<obj>)=
-    {Fn=start a;InputType=[];OutputType=typeof<'a>;Next=[];Last=Array.empty;ID=Guid.NewGuid()}
 
 //NOTE: it is very important that we not use the copy then update aproach of records. this will cause us to loose our refernce
 let join inputNum  (dest:Node) (source:Node) =
     if source.OutputType.IsAssignableTo(dest.InputType.[inputNum]) || hasImplicitConversion source.OutputType dest.InputType.[inputNum] then
         dest.Last.[inputNum]<-Some source
-        source.Next<-dest::source.Next 
+        source.Next<-dest::source.Next
     else failwith (sprintf"OH no, the output type of %A does not match the input type of %A " source dest)
 
-let disconnect inputNum  (dest:Node) source =
+let disconnect inputNum  (dest:Node) (source:Node) =
     dest.Last.[inputNum]<-None
     source.Next<- source.Next|>List.except [dest]

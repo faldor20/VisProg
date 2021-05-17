@@ -105,7 +105,7 @@ let ender=createNode (printfn "from the observable %A")
 let middleb= createNode (multiply)
 let middlea1 = createNode (multiply 2)
 let middlea2=createNode (plus1)
-let starter= createFirstNode<Int32> ( obsv|>Observable.map box)  
+let starter= createFirstNode<obj> ( obsv|>Observable.map box)  
 starter|>join 0 middlea1
 starter|>join 0 middlea2
 middlea1|>join 0 middleb
@@ -140,7 +140,7 @@ let main argv =
         printfn "domain:%A" x.Domain
         printfn "codomain:%A" x.CoDomain
     //printfn "run test %A" (VisProg.Test2.run())
-    runner starter
+    let v=runner starter
     //test()
     Async.RunSynchronously<|Async.Sleep 10000
     //as we can see her the domain is allways the first input type and the codomain is the rest. This is becase of currying.

@@ -11,9 +11,9 @@ let sortTuple (a :( int*'a )list)=
     |>List.map snd
 
 ///Runs a Sequence of nodes. the starting node must have Fn=Iobservable<'a>
-let runner (startingNode:Node)=
+let runner (startingNode:FirstNode<'T>)=
     let mutable waiting= new Dictionary<Guid,(int*IObservable<'h>)list>()
-    let input a= (a.Fn:?>(unit->IObservable<'a>))()
+ //   let input a= (a.Fn:?>(unit->IObservable<'a>))()
 
     ///This appreach usises an up and down appreoach. we go up till a multi input node then back down untill a start to hook iup evverything beore that node
     /// A simpler approach may be to go till we find a multi input node then just add the previous node to a dictionary with the key as the multi input node
@@ -54,7 +54,7 @@ let runner (startingNode:Node)=
                             |>Observable.zipArray
                             |>Observable.map (fun args->
                             printfn "running joined obserable with args %A"args
-                            (unbox(dynamicFunction node.Fn (args|>Seq.toList))))
+                            (unbox(dynamicFunction node.Fn (args))))
                         node.Next|>List.collect(run mapped node)
                     else 
                         printfn "nth hit on mulitNode"
@@ -67,5 +67,31 @@ let runner (startingNode:Node)=
                 raise (new System.ArgumentException(sprintf "The node '%A' did not have all its inputs filled. inputs %A " node node.Last))
                 
     printfn "starting running from node%A" startingNode
-    startingNode.Next|>List.collect(fun next-> run (input startingNode) startingNode next )
+    startingNode.Next|>List.collect(fun next-> run (startingNode.Fn) startingNode next )
     |>List.toArray|>Observable.zipArray|> Observable.wait
+
+
+
+
+(* 
+
+///This appreach usises an up and down appreoach. we go up till a multi input node then back down untill a start to hook iup evverything beore that node
+/// A simpler approach may be to go till we find a multi input node then just add the previous node to a dictionary with the key as the multi input node
+///then we start again at another starting node
+/// once all the starting nodes are run out we run throught the nodes stored in the dictionary
+///repeate untill the dictionary is empty, meaning that all node paths are complete.
+let rec run<'b,'c,'j,'y> (last:IObservable<'b>)  (node:Node<'b,'c>):'j list =
+    
+    printfn "running from node %A" (node.Fn)
+    let obsv=last|> Observable.map node.Fn
+    if node.Next.Length>0 then
+        node.Next|>List.collect(fun nextNode->run obsv (nextNode:?>Node<'c,'y>))
+    else []
+    
+let runner<'T,'c,'j,'y> (startingNode:FirstNode<'T>) =
+ //   let input a= (a.Fn:?>(unit->IObservable<'a>))()
+
+                
+    printfn "starting running from node%A" startingNode
+
+    startingNode.Next|>List.collect(fun next-> run<'T,'c,'j,'y> (startingNode.Fn) (next:?>Node<'T,'c>) ) *)
