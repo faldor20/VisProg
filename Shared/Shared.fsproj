@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Compile Include="Node.fs" />
-    <Compile Include="Executer.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Control.Reactive" Version="5.0.2" />
