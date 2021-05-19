@@ -1,8 +1,8 @@
-
-module VisProg.Node
+module VisProg.Shared.Node
 open System
 open FSharp.Reflection
 open TypeShape.Core
+open TypeShape
 let hasImplicitConversion  (source:Type) (destination:Type) =
 
     let sourceCode = Type.GetTypeCode( source );
@@ -86,8 +86,6 @@ let dynamicFunction fn a=
     match trydynamicFunction fn a with
     |Success x->x
     |ObjectWasNotAFunction x->failwith "tred to invoke an obect that was not a function %A"x
-let a= typeof<FSharpFunc<int,int>>
-let genType=a.GetGenericTypeDefinition()
 type Node ={
     ID:Guid
     Fn:obj
@@ -97,7 +95,7 @@ type Node ={
     Last:Node option array 
 }
 
-let createNode<'T> (a:'T)  =
+let inline createNode<'T> (a:'T)  =
     match shapeof<'T> with
     |Shape.FSharpFunc x->
         let rec getInputs (fn:IShapeFSharpFunc) inputs=
@@ -112,7 +110,7 @@ let createNode<'T> (a:'T)  =
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
         {Fn=a;InputType=inputs;OutputType=output.Type;Next=[];Last=Array.create inputs.Length None;ID=Guid.NewGuid()}
 let start a ()=a
-let createFirstNode<'a> (a:IObservable<obj>)=
+let inline createFirstNode<'a> (a:IObservable<obj>)=
     {Fn=start a;InputType=[];OutputType=typeof<'a>;Next=[];Last=Array.empty;ID=Guid.NewGuid()}
 
 //NOTE: it is very important that we not use the copy then update aproach of records. this will cause us to loose our refernce

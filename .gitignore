@@ -1,2 +1,14 @@
-/bin
-/obj
+**/bin/**
+**/obj/**
+Executer.fs.js
+Executer.fs.js.map
+Node.fs.js
+Node.fs.js.map
+Program.fs.js
+Program.fs.js.map
+Test2.fs.js
+Test2.fs.js.map
+ElmishUI/dist/tests/Tests.js
+ElmishUI/dist/tests/src/Components.js
+ElmishUI/dist/tests/src/Extensions.js
+ElmishUI/dist/tests/src/Main.js

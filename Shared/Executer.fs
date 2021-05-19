@@ -1,6 +1,6 @@
 
-module VisProg.Executer
-open Node
+module VisProg.Shared.Executer
+open VisProg.Shared.Node
 open System
 open System.Collections.Generic
 open FSharp.Control.Reactive
@@ -41,7 +41,7 @@ let runner (startingNode:Node)=
             
         |_ -> 
             //TODO: i ned to make sure order is maintained here
-            if (Array.TrueForAll(node.Last,(fun x-> x.IsSome))) then 
+            if (node.Last|>Array.map Option.isSome |>Array.contains false |>not ) then 
                 let lastNodes= node.Last|>Array.map(fun x->x.Value)
                 if waiting.ContainsKey node.ID then 
                     waiting.[node.ID]<-(lastNodes|>Array.findIndex(fun x->x.ID=lastNode.ID),last)::waiting.[node.ID]

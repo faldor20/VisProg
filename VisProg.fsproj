@@ -16,5 +16,7 @@
     <PackageReference Include="FSharp.Control.Reactive" Version="5.0.2" />
     <PackageReference Include="TypeShape" Version="9.0.0" />
   </ItemGroup>
-
+<ItemGroup>
+<ProjectReference Include="./Shared/Shared.fsproj" />
+    </ItemGroup>
 </Project>

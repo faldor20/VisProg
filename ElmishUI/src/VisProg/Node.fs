@@ -1,9 +1,9 @@
-module VisProg
+namespace VisProg.UI
 
 
 module VisNode=
     open System
-    open VisProg.Node
+    open VisProg.Shared.Node
     open Feliz
     type VisNode=
         {
@@ -51,11 +51,11 @@ module VisNode=
     let renderInputs visNode selectedType =
         let id= (getIDString visNode)
         renderSockets visNode.inputNames visNode.Node.InputType selectedType id true 
-        
+
     let renderOutputs visNode selectedType=
         let id= (getIDString visNode)
         renderSockets visNode.outputNames [visNode.Node.OutputType] selectedType  id false
-                
+            
     let renderNode (visNode:VisNode) selectedType =
         Html.div[
             prop.className "node"
