@@ -105,6 +105,96 @@ type Node =
       mutable Next: Node list
       Last: Node option array }
 
+let inline boxFn< ^a, ^b> (fn: ^a -> ^b) =
+    (fun (x: obj) -> (x |> unbox |> fn) |> box)
+
+let inline applyBoxedFn< ^a, ^b> (fn: ^a -> ^b) = (fun (x: obj) -> (x |> unbox |> fn))
+
+let inline applyBoxedFn2 (fn: ^a -> ^b -> ^c) = applyBoxedFn fn
+
+let inline boxFn2 (fn: ^a -> ^b -> ^c) =
+    let boxed =
+        (fun (x: obj) (y: obj) -> fn (unbox x) (unbox y) |> box)
+
+    (fun (x: obj) -> (boxed x) |> box)
+
+
+let inline boxFn12 (fn: ^a -> ^b) (x: obj) =
+    let boxed = (fn (unbox x)) |> box
+    boxed
+
+let inline boxFn22 (fn: ^a -> ^b -> ^c) (x: obj) =
+    let boxed = boxFn12 (fn (x |> unbox)) |> box
+    boxed
+
+let inline boxFn32 (fn: ^a -> ^b -> ^c -> ^d) (x: obj) =
+    let boxed = boxFn22 (fn (unbox x)) |> box
+    boxed
+
+(* let inline boxFn< ^a, ^b> (fn: ^a -> ^b) =
+    let mutable times = 0
+
+    let rec recurse (func: 'a->'b) =
+        times <- times + 1
+
+        if times = 100 then
+            failwith "to many loops somehing broke"
+
+        match TypeShape.FromValue(func) with
+        | Shape.FSharpFunc s ->
+            match s.CoDomain with
+            | Shape.FSharpFunc ss ->
+                let rest=recurse obj
+                let withBoxedInput =
+                    (fun (x: obj) -> (func (x |> unbox)) |> box)
+
+            | _ -> (fun x -> x |> unbox |> fn |> box)
+        | _ -> (fun x -> fn |> box)
+
+    recurse fn  *)
+
+
+let getFuncTypes (fn: ^a -> ^b) =
+    let input = typeof< ^a>
+    let output = typeof< ^b>
+    (input, output)
+
+
+type BoxedNode(fn) =
+    let boxedFN = boxFn fn
+    let input, output = getFuncTypes fn
+    member x.ID : Guid = Guid.NewGuid()
+    member x.Fn : obj -> obj = boxedFN
+    member x.InputType : Type list = [ input ]
+    member x.OutputType : Type = output
+    member val Next: BoxedNode list = [] with get, set
+    member x.Last : BoxedNode option array = Array.init 1 (fun x -> None)
+
+let rec boxedCurry2 (fn: obj -> obj) (args: obj list) =
+    let res = fn (unbox args.Head)
+
+    match args with
+    | [ arg ] -> res |> box
+    | arg :: rest -> (boxedCurry2 (fun (x: obj) -> ((res |> unbox) (unbox x) |> box))) rest
+    | _ -> raise (new ArgumentException "Received an empty arg array. Cannot run function with no arguments")
+
+let rec boxedCurry (fn: obj -> obj) (args: obj list) =
+    match args with
+    | [ arg ] -> fn arg
+    | arg :: rest -> boxedCurry ((fn arg) :?> obj -> obj) rest
+    | _ -> raise (new ArgumentException "Received an empty arg array. Cannot run function with no arguments")
+
+let rec boxedObservableExec obsv (node: BoxedNode) =
+    let osbvNext = obsv |> Observable.map node.Fn
+
+    if node.Next.Length > 0 then
+        node.Next
+        |> List.collect (boxedObservableExec osbvNext)
+    else
+        [ osbvNext ]
+
+
+
 let inline createNode<'T> (a: 'T) =
     match shapeof<'T> with
     | Shape.FSharpFunc x ->

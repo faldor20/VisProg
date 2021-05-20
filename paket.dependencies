@@ -1,0 +1,20 @@
+source https://api.nuget.org/v3/index.json
+framework: net50
+
+nuget coverlet.collector 1.3.0
+nuget Expecto >= 9.0
+nuget Fable.Browser.Dom 2.3.0
+nuget Fable.DateFunctions 3.7.0
+nuget Fable.Elmish 3.1.0
+nuget Fable.Elmish.React 3.0.1
+nuget Fable.Mocha 2.9.1
+nuget Feliz 1.45.0
+nuget Feliz.Router 3.8.0
+nuget FSharp.Control.Reactive 5.0.2
+nuget FSharp.Core >= 5.0
+nuget Microsoft.NET.Test.Sdk 16.7.1
+nuget TypeShape 9.0.0
+nuget Unquote 6.1.0
+nuget xunit 2.4.1
+nuget xunit.runner.visualstudio 2.4.3
+nuget YoloDev.Expecto.TestSdk
