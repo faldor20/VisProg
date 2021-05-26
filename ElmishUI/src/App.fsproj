@@ -13,7 +13,7 @@
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../Shared/Shared.fsproj" />
+    <ProjectReference Include="../../Shared/Node.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

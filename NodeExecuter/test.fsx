@@ -89,9 +89,29 @@ let obsv =
 
 runSimple obsv mid
 let a = typeof<Int64>
+
 let b = typeof<Int32>
-printfn "%A" <| a.IsInstanceOfType(b)
+(* printfn "%A" <| a.IsInstanceOfType(b)
 printfn "%A" <| b.IsInstanceOfType(a)
 printfn "%A" <| b.IsAssignableFrom(a)
 printfn "%A" <| b.IsAssignableTo(a)
-printfn "%A" <| b.GetInterfaces()
+printfn "%A" <| b.GetInterfaces() *)
+let inline objectifyTuple< ^a, ^b, ^c, ^d, ^U> (tuple: ^U) =
+    let boxed = (box tuple)
+
+    match (boxed) with
+    | :? (^a * ^b) as t ->
+        let a, b = t
+        box (box a, box b)
+    | :? (^a * ^b * ^c) as t ->
+        let a, b, c = t
+        box (box a, box b, box c)
+    | :? (^a * ^b * ^c * ^d) as t ->
+        let a, b, c, d = t
+        box (box a, box b, box c, box d)
+    | _ -> failwith "non implmented tuple length"
+
+let out =
+    objectifyTuple<int, string, obj, obj, int * string> (1, "hi")
+
+printfn "%A" (unbox out)

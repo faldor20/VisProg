@@ -1,5 +1,8 @@
 source https://api.nuget.org/v3/index.json
 framework: net50
+storage: none
+
+nuget taskbuilder.fs 
 
 nuget coverlet.collector 1.3.0
 nuget Expecto >= 9.0
@@ -18,3 +21,15 @@ nuget Unquote 6.1.0
 nuget xunit 2.4.1
 nuget xunit.runner.visualstudio 2.4.3
 nuget YoloDev.Expecto.TestSdk
+nuget Fable.Elmish.Debugger 
+nuget Fable.Elmish.HMR 
+nuget Fable.MochaPuppeteerRunner 
+nuget Fable.Remoting.Client 
+nuget Fable.Remoting.Giraffe 
+nuget Fake.Core.Environment 
+nuget Fake.Core.Target 
+nuget Nuke.Common 
+nuget Saturn 
+nuget Serilog.AspNetCore 
+nuget Serilog.Sinks.Console 
+nuget Zanaptak.TypedCssClasses 

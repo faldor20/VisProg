@@ -1,6 +1,7 @@
 module Tests.NodeTests
 
 open VisProg.Shared.Node
+open VisProg.BackEnd.Node
 open Swensen.Unquote
 open Xunit
 open System
@@ -37,11 +38,13 @@ let ``Boxed 3 arg Func Executes`` () =
     res =! ((args |> List.sum) + 5)
 
 [<Fact>]
-let ``RecursiveBox`` () =
+let ``Recursive Box`` () =
     let args = [ 10; 20; 30; 40 ]
+    let boxers = [ boxFn2 boxFn2 ]
 
     let func =
-        boxFn4 (fun x y z v -> x + 5 + y + z + v)
+        //anyboxer (fun x y z v -> x + 5 + y + z + v) 4
+        unbox (boxers.[0] (fun x y -> x + y))
 
     let boxedArgs = args |> List.map box
 
