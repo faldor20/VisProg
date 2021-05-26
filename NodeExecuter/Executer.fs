@@ -179,7 +179,7 @@ let runner2 (startingNode: FirstNode) =
     /// once all the starting nodes are run out we run throught the nodes stored in the dictionary
     ///repeate untill the dictionary is empty, meaning that all node paths are complete.
     and run2 (lastObs: IObservable<obj>) (lastNodeID: Guid) (node: BoxedNode) =
-        printfn "running from node with inputs %A and outputs %A" node.Template.InputType node.Template.OutputType
+        printfn "running from node with inputs %A and outputs %A" node.Template.InputsCount node.outputType
         printfn "next nodes %A last nodes  %A" node.Next node.Last
         //First we check if we are a single or multiple input node
         match node.Last.Length with
@@ -202,7 +202,7 @@ let runner2 (startingNode: FirstNode) =
             if not (readyInputs.ContainsKey node.ID) then
                 printfn "first hit on mulitNode."
                 []
-            else if readyInputs.[node.ID].Length = node.Template.InputType.Length then
+            else if readyInputs.[node.ID].Length = node.Template.InputsCount then
                 printfn "muti input node with length %i has all inputs ready" node.Last.Length
                 //This allows us to run a function with an arbitrary number of input params
                 let mapped =

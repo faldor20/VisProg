@@ -25,11 +25,10 @@ let resolveGenericType (typesList: Type option array) (genericType) =
         baseType.MakeGenericType(types)
 
 type GenericNodeTemplate(inputTypes, outputTypes, fn, nodeInfo) =
-    inherit NodeTemplate()
+    inherit NodeTemplate(fn)
     member x.InputTypes : GenericType list = inputTypes
     member x.OutputType : GenericType = outputTypes
-
-    member x.Fn : obj -> obj = fn
+    override x.InputsCount = inputTypes.Length
     member val NodeInfo: NodeInfo = nodeInfo
 
 type GenericNode(template: GenericNodeTemplate, typesList) =

@@ -121,22 +121,18 @@ type NodeInfo =
       InputNames: string list
       OutputNames: string list }
 
-type NodeTemplate() =
+[<AbstractClass>]
+type NodeTemplate(fn) =
     class
+        member x.Fn : obj -> obj = fn
+        abstract member InputsCount : int
     end
 
-
-type GenericNodeTemplate(inputTypes, outputTypes, typesList) =
-    inherit NodeTemplate()
-    let _inputTypes : GenericType list = inputTypes
-    let _outputType : GenericType = outputTypes
-
-
 type MiddleNodeTemplate(fn, input, output, nodeInfo) =
-    inherit NodeTemplate()
-    member x.Fn : obj -> obj = fn
+    inherit NodeTemplate(fn)
     member x.InputType : Type list = input
     member x.OutputType : Type = output
+    override x.InputsCount = input.Length
     member val NodeInfo: NodeInfo = nodeInfo
 
 type FirstNodeTemplate(fn, input, output, nodeInfo) =
