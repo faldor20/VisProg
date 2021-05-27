@@ -13,3 +13,22 @@ ElmishUI/dist/tests/Tests.js
 ElmishUI/dist/tests/src/Components.js
 ElmishUI/dist/tests/src/Extensions.js
 ElmishUI/dist/tests/src/Main.js
+# Visual Studio temp something
+.vs/
+
+# dotnet stuff
+project.lock.json
+
+# VS 2015+
+*.vc.vc.opendb
+*.vc.db
+
+# Rider
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Output folder used by Webpack or other FE stuff
+**/node_modules/*
+**/wwwroot/*
