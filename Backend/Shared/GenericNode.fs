@@ -35,6 +35,26 @@ type GenericNode(template: GenericNodeTemplate, typesList) =
     inherit Node(template)
     let _typesList : Type option array = typesList
 
+    interface MiddleNode with
+        member x.registerInputNode index (node: Node) =
+            let inp = template.InputTypes.[index]
+            let incomingType = node.outputType
+            let args = incomingType.GetGenericArguments()
+
+            match inp with
+            | SingleType index ->
+                if args.Length > 0 then
+                    raise (
+                        new ArgumentException "Tried to input a complex generic type into a simple genericType input"
+                    )
+
+                _typesList.[index] <- Some incomingType
+            | ComplexType (_, indexs) ->
+                //TODO: i need to ensure the index of the type args is allways what i expect it to be
+                (indexs, args)
+                ||> Array.iter2 (fun index arg -> _typesList.[index] <- Some arg)
+
+
     override x.outputType =
         template.OutputType
         |> resolveGenericType _typesList

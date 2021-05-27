@@ -128,41 +128,77 @@ type NodeTemplate(fn) =
         abstract member InputsCount : int
     end
 
-type MiddleNodeTemplate(fn, input, output, nodeInfo) =
+type NonGenericNodeTemplate(fn, input, output, nodeInfo) =
     inherit NodeTemplate(fn)
     member x.InputType : Type list = input
     member x.OutputType : Type = output
     override x.InputsCount = input.Length
     member val NodeInfo: NodeInfo = nodeInfo
 
+type StartingNodeTemplate(fn, input, output, nodeInfo) =
+    inherit NonGenericNodeTemplate(fn, input, output, nodeInfo)
+
 type FirstNodeTemplate(fn, input, output, nodeInfo) =
-    inherit MiddleNodeTemplate(fn, input, output, nodeInfo)
+    inherit NonGenericNodeTemplate(fn, input, output, nodeInfo)
 
 [<AbstractClass>]
 type Node(template) =
     member val ID: Guid = Guid.NewGuid()
     member val Template: NodeTemplate = template
+    member val Next: Node list = [] with get, set
     abstract member outputType : Type
     abstract member inputType : int -> Type
 
-type BoxedNode(template: MiddleNodeTemplate) =
+
+type MiddleNode =
+    abstract member registerInputNode : int -> Node -> unit
+
+[<AbstractClass>]
+type NonGenericNode(template: NonGenericNodeTemplate) =
     inherit Node(template)
+    override x.outputType = template.OutputType
+    override x.inputType index = template.InputType.[index]
+
+type BoxedNode(template: NonGenericNodeTemplate) =
+    inherit NonGenericNode(template)
 
     let last =
         Array.init (template.InputType.Length) (fun x -> None)
 
-    override x.outputType = template.OutputType
-    override x.inputType index = template.InputType.[index]
-    member val Next: BoxedNode list = [] with get, set
-    member val Last: BoxedNode option array = last
-    member x.registerInputNode inputNum node = last.[inputNum] <- Some node
+    interface MiddleNode with
+        member x.registerInputNode inputNum node = last.[inputNum] <- Some node
+
+    member val Last: Node option array = last
+///The function given to the must be of type
+type BeginningNode(template: NonGenericNodeTemplate) =
+    inherit NonGenericNode(template)
+    member x.inputs : obj array = [||]
+
+type StartingNode(template: StartingNodeTemplate) =
+    inherit BeginningNode(template)
 
 type FirstNode(template: FirstNodeTemplate) =
-    inherit BoxedNode(template)
+    inherit BeginningNode(template)
 
-type GenericNode(template) =
-    inherit BoxedNode(template)
-    let nodeTypes : Type array = [||]
 ///The first node is differnet from the others beuase it's function must return an observable
 /// Any inputs to the function will be rendered as a text box for you to enter input
 //NOTE: it is very important that we not use the copy then update aproach of records. this will cause us to loose our refernce
+
+
+///An alternative way to make theunctions that doesnt require as much boxing and unboxing and preserves the type infomation
+///possibly allowing for pattern matching
+type testFunc =
+    abstract member RunFunc : (obj list) -> obj
+
+type testFunc1<'a, 'b>(fn) =
+    let func : 'a -> 'b = fn
+
+    interface testFunc with
+        member x.RunFunc args = (fn (unbox args.[0])) |> box
+
+type testFunc2<'a, 'b, 'c>(fn) =
+    let func : 'a -> 'b -> 'c = fn
+
+    interface testFunc with
+        member x.RunFunc args =
+            (fn (unbox args.[0]) (unbox args.[1])) |> box

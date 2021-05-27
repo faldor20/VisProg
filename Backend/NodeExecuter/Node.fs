@@ -191,24 +191,12 @@ let inline anyUncurryAndBoxFn (fn: ^T -> ^U) argNum : obj -> obj =
                     argNum
             )
         )
+(*
+let inline anyboxer< ^T, ^U> (fn: ^T-> ^U) argNum : obj -> obj =
 
-let inline anyboxer< ^T, ^U> (fn: obj) argNum : obj -> obj =
+    let a=fn.GetType().GetGenericTypeDefinition()
+*)
 
-
-    let exp =
-        match argNum with
-        | 5 -> boxFn5 (unbox fn)
-        | 4 -> boxFn4 (unbox fn)
-        | _ ->
-            raise (
-                new ArgumentException(
-                    sprintf
-                        "tried to do afunctionboxing on a function taht ahd to many input args only functions with up to 5 args ar currently supported yours had %i"
-                        argNum
-                )
-            )
-
-    exp
 
 (* type Funct< ^a, ^b, ^c> =
     | F1 of (^a -> ^b)
@@ -220,11 +208,11 @@ let inline anyboxer (fn: Funct< ^a, ^b, ^c >) =
     | F2 a -> boxFn2 a *)
 
 let getFuncTypes (fn: ^a -> ^b) =
-    let input = typeof< ^a>
-    let output = typeof< ^b>
+    let input = typedefof< ^a>
+    let output = typedefof< ^b>
     (input, output)
 
-let inline createBoxedNodeTemplate (fn: ^T -> ^U) (description: string) (outputName: string) =
+let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
     match shapeof< ^T ->  ^U> with
     | Shape.FSharpFunc x ->
         let rec getInputs (fn: IShapeFSharpFunc) inputs =
@@ -235,7 +223,8 @@ let inline createBoxedNodeTemplate (fn: ^T -> ^U) (description: string) (outputN
             | output -> (newInputs, output)
 
         let inputs, output = getInputs x []
-        let boxedFunc = anyboxer fn (inputs.Length)
+        //let boxedFunc = anyboxer fn (inputs.Length)
+        let boxedFunc = boxer fn
         printfn "type:%A" x
         printfn "inputs %A" inputs
         let (funcName, funcInputs) = DocumentGetter.GetInfo(fn)
@@ -247,7 +236,7 @@ let inline createBoxedNodeTemplate (fn: ^T -> ^U) (description: string) (outputN
               OutputNames = [ (outputName) ] }
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
-        MiddleNodeTemplate(boxedFunc, inputs, output.Type, nodeInfo)
+        NonGenericNodeTemplate(boxedFunc, inputs, output.Type, nodeInfo)
     | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
 
 (* let inline objectifyTuple (tuple: ^U) =

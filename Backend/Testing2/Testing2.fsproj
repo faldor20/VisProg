@@ -11,8 +11,8 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../Shared/Node.fsproj" />
-    <ProjectReference Include="../NodeExecuter/Executer.fsproj" />
+    <ProjectReference Include="..\NodeExecuter\Executer.fsproj" />
+    <ProjectReference Include="..\Shared\Node.fsproj" />
   </ItemGroup>
-  <Import Project="..\.paket\Paket.Restore.targets" />
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
