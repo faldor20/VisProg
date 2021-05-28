@@ -6,6 +6,7 @@ open System.Collections.Generic
 open FSharp.Control.Reactive
 open FSharp.Quotations
 open VisProg.BackEnd.Node
+open VisProg.Shared.Node.GenericNode
 (* type InvokeResult =
     | Success of obj
     | ObjectWasNotAFunction of Type
@@ -40,7 +41,7 @@ let dynamicFunction fn a =
 
 let sortTuple (a: (int * 'a) list) = a |> List.sortBy fst |> List.map snd
 
-let checkNodeHasAllInputs (node: BoxedNode) =
+let checkNodeHasAllInputs (node: MiddleNode) =
     node.Last
     |> Array.map Option.isSome
     |> Array.contains false
@@ -63,7 +64,7 @@ let FuncRunner (inputs: obj array) (firsts: FirstNode list) (startingNode: Start
     let mutable readyInputs = new Dictionary<Guid, (int * obj) list>()
 
 
-    let addReadyInput (node: BoxedNode) (lastNodeID: Guid) lastObs =
+    let addReadyInput (node: MiddleNode) (lastNodeID: Guid) lastObs =
         let lastNodes =
             node.Last |> Array.map (fun x -> x.Value)
 
@@ -88,7 +89,7 @@ let FuncRunner (inputs: obj array) (firsts: FirstNode list) (startingNode: Start
 
         readyInputs.[node.ID] <- inputList
 
-    let rec handleNextNodes (node: BoxedNode) output =
+    let rec handleNextNodes (node: MiddleNode) output =
         if node.Next.Length > 0 then
             node.Next
             |> List.collect (buildFunc output node.ID)
@@ -97,7 +98,7 @@ let FuncRunner (inputs: obj array) (firsts: FirstNode list) (startingNode: Start
 
     and buildFunc input lastID (node: Node) =
         match node with
-        | :? BoxedNode as node ->
+        | :? MiddleNode as node ->
             if node.Last.Length = 1 then
                 let res = boxedCurry node.Template.Fn [ input ]
                 handleNextNodes node res
@@ -154,7 +155,7 @@ let runner2 (startingNode: FirstNode) =
         new Dictionary<Guid, (int * IObservable<'h>) list>()
     ///Adds the lastNode to the list of nodes that are ready to be input into this node
     ///This is becuase a node with multiple inputs must have all inputs at the ready beore it can cinute and hook up to the next node
-    let addReadyInput (node: BoxedNode) (lastNodeID: Guid) lastObs =
+    let addReadyInput (node: MiddleNode) (lastNodeID: Guid) lastObs =
         let lastNodes =
             node.Last |> Array.map (fun x -> x.Value)
 
@@ -179,7 +180,7 @@ let runner2 (startingNode: FirstNode) =
 
         readyInputs.[node.ID] <- inputList
     /// wither recurses onwardds or returns a result if this is the final node
-    let rec handleNextNodes (node: BoxedNode) osbvNext =
+    let rec handleNextNodes (node: MiddleNode) osbvNext =
         if node.Next.Length > 0 then
             node.Next |> List.collect (run2 osbvNext node.ID)
         else
@@ -189,7 +190,7 @@ let runner2 (startingNode: FirstNode) =
     ///then we start again at another starting node
     /// once all the starting nodes are run out we run throught the nodes stored in the dictionary
     ///repeate untill the dictionary is empty, meaning that all node paths are complete.
-    and run2 (lastObs: IObservable<obj>) (lastNodeID: Guid) (node: BoxedNode) =
+    and run2 (lastObs: IObservable<obj>) (lastNodeID: Guid) (node: MiddleNode) =
         printfn "running from node with inputs %A and outputs %A" node.Template.InputsCount node.outputType
         printfn "next nodes %A last nodes  %A" node.Next node.Last
         //First we check if we are a single or multiple input node

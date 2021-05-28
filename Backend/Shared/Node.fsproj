@@ -7,6 +7,8 @@
   <ItemGroup>
     <Compile Include="Node.fs" />
     <Compile Include="GenericNode.fs" />
+    <Compile Include="FunctionalNode.fs" />
+    <Compile Include="NodeFuncs.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -149,29 +149,11 @@ type Node(template) =
     abstract member outputType : Type
     abstract member inputType : int -> Type
 
-
-type MiddleNode =
-    abstract member registerInputNode : int -> Node -> unit
-
 [<AbstractClass>]
-type NonGenericNode(template: NonGenericNodeTemplate) =
+type BeginningNode(template: NonGenericNodeTemplate) =
     inherit Node(template)
     override x.outputType = template.OutputType
     override x.inputType index = template.InputType.[index]
-
-type BoxedNode(template: NonGenericNodeTemplate) =
-    inherit NonGenericNode(template)
-
-    let last =
-        Array.init (template.InputType.Length) (fun x -> None)
-
-    interface MiddleNode with
-        member x.registerInputNode inputNum node = last.[inputNum] <- Some node
-
-    member val Last: Node option array = last
-///The function given to the must be of type
-type BeginningNode(template: NonGenericNodeTemplate) =
-    inherit NonGenericNode(template)
     member x.inputs : obj array = [||]
 
 type StartingNode(template: StartingNodeTemplate) =

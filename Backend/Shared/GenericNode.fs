@@ -8,8 +8,11 @@ type GenericType =
     | SingleType of int
     | ComplexType of (Type * int array)
 
-type UnknownType = obj
+type SocketType =
+    | Generic of GenericType
+    | Standard of Type
 
+type UnknownType = obj
 
 let resolveGenericType (typesList: Type option array) (genericType) =
     match genericType with
@@ -24,24 +27,39 @@ let resolveGenericType (typesList: Type option array) (genericType) =
 
         baseType.MakeGenericType(types)
 
-type GenericNodeTemplate(inputTypes, outputTypes, fn, nodeInfo) =
+let getOutputType typesList socket =
+    match socket with
+    | Generic a -> resolveGenericType typesList a
+    | Standard a -> a
+
+type MiddleNodeTemplate(inputTypes, outputTypes, fn, nodeInfo) =
     inherit NodeTemplate(fn)
-    member x.InputTypes : GenericType list = inputTypes
-    member x.OutputType : GenericType = outputTypes
+    member x.InputTypes : SocketType list = inputTypes
+    member x.OutputType : SocketType = outputTypes
     override x.InputsCount = inputTypes.Length
     member val NodeInfo: NodeInfo = nodeInfo
 
-type GenericNode(template: GenericNodeTemplate, typesList) =
+type MiddleNode(template: MiddleNodeTemplate, typesList) =
     inherit Node(template)
     let _typesList : Type option array = typesList
 
-    interface MiddleNode with
-        member x.registerInputNode index (node: Node) =
-            let inp = template.InputTypes.[index]
-            let incomingType = node.outputType
-            let args = incomingType.GetGenericArguments()
+    let last =
+        Array.init (template.InputTypes.Length) (fun x -> None)
 
-            match inp with
+    member val Last: Node option array = last
+    ///Used to register a node as inputting to this socket
+    ///Sets any generic types associated with this input to the types coming from the source node
+    member x.registerInputNode socketNum (node: Node) =
+        let inp = template.InputTypes.[socketNum]
+        let incomingType = node.outputType
+        let args = incomingType.GetGenericArguments()
+
+        last.[socketNum] <- Some node
+
+        match inp with
+        | Standard _ -> ()
+        | Generic a ->
+            match a with
             | SingleType index ->
                 if args.Length > 0 then
                     raise (
@@ -53,12 +71,26 @@ type GenericNode(template: GenericNodeTemplate, typesList) =
                 //TODO: i need to ensure the index of the type args is allways what i expect it to be
                 (indexs, args)
                 ||> Array.iter2 (fun index arg -> _typesList.[index] <- Some arg)
+    ///Used to remove a socket connection 
+    /// Does things like reset the generic status of the socket
+    member x.deRegisterInput socketNum =
+        let socket= template.InputTypes.[socketNum]
+        last.[socketNum]<-None
+
+        match socket with
+        |Standard a-> ()
+        |Generic a->
+            match a with 
+            |SingleType index->
+                _typesList.[index]<-None
+            |ComplexType (_,indexs)->
+                indexs|>Array.iter(fun index->_typesList.[index]<-None)
+
 
 
     override x.outputType =
-        template.OutputType
-        |> resolveGenericType _typesList
+        template.OutputType |> getOutputType _typesList
 
     override x.inputType index =
         template.InputTypes.[index]
-        |> resolveGenericType _typesList
+        |> getOutputType _typesList

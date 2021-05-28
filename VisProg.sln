@@ -3,9 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Executer", "..\NodeExecuter\Executer.fsproj", "{0F088AD3-16F1-4CB6-AB5D-1625B87BD3E0}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Executer", "Backend\NodeExecuter\Executer.fsproj", "{0F088AD3-16F1-4CB6-AB5D-1625B87BD3E0}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Shared", "..\Shared\Shared.fsproj", "{4BE0F669-5971-47F1-B034-7750D0A0BF8C}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Node", "Backend\Shared\Node.fsproj", "{4BE0F669-5971-47F1-B034-7750D0A0BF8C}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Testing2", "Backend\Testing2\Testing2.fsproj", "{6F3E3376-1C1D-4B89-82C9-AA7CC05E7CF6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E5BB1552-7C4B-42E3-9A5B-FA9C4EA289DC}"
+	ProjectSection(SolutionItems) = preProject
+		testing.fsx = testing.fsx
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +28,10 @@ Global
 		{4BE0F669-5971-47F1-B034-7750D0A0BF8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4BE0F669-5971-47F1-B034-7750D0A0BF8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4BE0F669-5971-47F1-B034-7750D0A0BF8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F3E3376-1C1D-4B89-82C9-AA7CC05E7CF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F3E3376-1C1D-4B89-82C9-AA7CC05E7CF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F3E3376-1C1D-4B89-82C9-AA7CC05E7CF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F3E3376-1C1D-4B89-82C9-AA7CC05E7CF6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
