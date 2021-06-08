@@ -15,7 +15,7 @@ ElmishUI/dist/tests/src/Extensions.js
 ElmishUI/dist/tests/src/Main.js
 # Visual Studio temp something
 .vs/
-
+.lh/
 # dotnet stuff
 project.lock.json
 
