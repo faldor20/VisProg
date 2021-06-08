@@ -5,7 +5,7 @@ open VisProg.BackEnd.Node
 open Swensen.Unquote
 open Xunit
 open System
-
+open VisProg.Shared.Node.GenericNode
 [<Fact>]
 let ``Boxed Func executes`` () =
     let func = boxFn (fun x -> x + 5)
