@@ -6,7 +6,7 @@ open System.Collections.Generic
 open FSharp.Control.Reactive
 open FSharp.Quotations
 open VisProg.BackEnd.Node
-open VisProg.Shared.Node.GenericNode
+open VisProg.Shared.Node
 (* type InvokeResult =
     | Success of obj
     | ObjectWasNotAFunction of Type

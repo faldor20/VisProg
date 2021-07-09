@@ -1,4 +1,5 @@
-module VisProg.Shared.Node.GenericNode
+[<AutoOpen>]
+module VisProg.Shared.Node.Mid
 
 open System
 

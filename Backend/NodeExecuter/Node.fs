@@ -157,6 +157,13 @@ type DocumentGetter =
 
             let name = methodInfo.Name
             (name, paramaters)
+        | ValueWithName (rest,t,name)->
+            printfn "valuewithName %A, type: %A" rest (rest.GetType())
+            (name,[|"params"|])
+        |e->
+            printfn "getting info un usnuported type of %A  Type: %A" e e.Type
+            ("",[|""|])
+
 
 let inline boxHelper (fn: ^a -> ^b) above (x: obj) : obj = x |> (unbox >> fn >> above >> box)
 
@@ -237,6 +244,37 @@ let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (o
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
         NonGenericNodeTemplate(boxedFunc, inputs, output.Type, nodeInfo)
+    | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
+let inline createMiddleNodeTemplate< ^T ,^U> (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
+    match shapeof< ^T ->  ^U> with
+    | Shape.FSharpFunc x ->
+        let rec getInputs (fn: IShapeFSharpFunc) inputs =
+            let fnType=fn.Domain.Type
+            printfn "is genereic %A" fnType.IsGenericType
+            printfn "is genericParamater %A" fnType.IsGenericParameter
+            printfn "is genericmethodParam %A" fnType.IsGenericMethodParameter
+            printfn "is genericTypeDef %A" fnType.IsGenericTypeDefinition
+            let newInputs =( SocketType.Standard fnType) :: inputs
+            
+            match fn.CoDomain with
+            | Shape.FSharpFunc x -> getInputs x newInputs
+            | output -> (newInputs, output)
+
+        let inputs, output = getInputs x []
+        //let boxedFunc = anyboxer fn (inputs.Length)
+        let boxedFunc = boxer fn
+        printfn "type:%A" x
+        printfn "inputs %A" inputs
+        let (funcName, funcInputs) = DocumentGetter.GetInfo(fn)
+
+        let nodeInfo =
+            { Name = funcName
+              InputNames = (Array.toList funcInputs)
+              Description = (description)
+              OutputNames = [ (outputName) ] }
+        //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
+        //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
+        MiddleNodeTemplate( inputs, SocketType.Standard output.Type,boxedFunc, nodeInfo)
     | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
 
 (* let inline objectifyTuple (tuple: ^U) =

@@ -2,7 +2,7 @@ module VisProg.Shared.Node.Funcs
 
 open System
 open Node
-open GenericNode
+
 
 let rec compairGenericTypes (a:Type) (b:Type)=
     let destArgs = a.GetGenericArguments()
@@ -25,7 +25,7 @@ and areCompatibleTypes (source: Type) (dest: Type) =
     || dest.IsAssignableFrom source
     || hasImplicitConversion source dest
     || dest = typeof<UnknownType>
-    ||compairGenericTypes source dest
+    || compairGenericTypes source dest
 
 
 let join inputNum (dest: MiddleNode) (source: Node) =

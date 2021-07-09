@@ -167,7 +167,7 @@ type FirstNode(template: FirstNodeTemplate) =
 //NOTE: it is very important that we not use the copy then update aproach of records. this will cause us to loose our refernce
 
 
-///An alternative way to make theunctions that doesnt require as much boxing and unboxing and preserves the type infomation
+///An alternative way to make the functions that doesnt require as much boxing and unboxing and preserves the type infomation
 ///possibly allowing for pattern matching
 type testFunc =
     abstract member RunFunc : (obj list) -> obj

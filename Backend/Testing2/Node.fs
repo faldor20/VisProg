@@ -51,3 +51,7 @@ let ``Recursive Box`` () =
     let res : int = (boxedCurry func boxedArgs) |> unbox
 
     res =! ((args |> List.sum) + 5)
+//NOde execution
+[<Fact>]
+let ``Test Params`` () =
+    printfn "is"
