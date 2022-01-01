@@ -108,7 +108,7 @@ let rec eval =
 
 and evalAll args = [| for arg in args -> eval arg |]
 
-let timer = System.Timers.Timer(1000.0)
+let timer = new System.Timers.Timer(1000.0)
 timer.Start()
 
 timer.Elapsed
@@ -157,13 +157,54 @@ let test () =
     [| d; c |]
     |> Observable.zipArray
     |> Observable.wait
+let prnt (a:'a) = 
+    printfn "printing %A"a
+    1
+let multi (a) b = 
+    printfn "multiplying %d and %d" a b
+    a*b
+let div (a) b = 
+    a/b
+let div2 (a)  = 
+    printfn "dividing %d by2 " a 
+    a/2
+let runTest()=
+
+    let prntNode= VisProg.BackEnd.Node.createMiddleNodeTemplate prnt boxFn "prints anything" "outputs an int 1."
+    let multiNode= VisProg.BackEnd.Node.createMiddleNodeTemplate multi boxFn2 "multiplies" "outputs a*b"
+    let divNode= VisProg.BackEnd.Node.createMiddleNodeTemplate div boxFn2 "divides" "output a/b"
+    let div2Node= VisProg.BackEnd.Node.createMiddleNodeTemplate div2 boxFn "diveds a /2" "a/2"
+    
+
+    let first (a:int)=
+        timer.Elapsed|>Observable.map(fun x->x.SignalTime.Second)
+    let second (a:int)=
+        [2;4;6;8;27;84]|>Observable.toObservable
+
+    let firstTemp=createFirstNodeTemplate boxFn first "name" "firstlist" "numbers"
+    let secondTemp=createFirstNodeTemplate boxFn second "name" "firstlist" "numbers"
+    let firststartNode= FirstNode(firstTemp)
+    let secondstartNode=FirstNode(secondTemp)
+    let multi= MiddleNode(multiNode,[||])
+    let div2=MiddleNode(div2Node,[||])
+    let prnt= MiddleNode(prntNode,[||])
+
+    let jn=VisProg.Shared.Node.Funcs.join
+    firststartNode|>jn 0 multi
+    secondstartNode|>jn 0 div2
+    div2|>jn 1 multi
+    multi|>jn 0 prnt
+
+    VisProg.Executer.runner2 [firststartNode;secondstartNode]
+    ()
+    
 
 [<EntryPoint>]
 let main argv =
     let message = from "F#" // Call the function
     printfn "Hello world %s" message
 
-
+(* 
     let a (b: int) = b
 
     match shapeof<bool -> int -> float> with
@@ -171,11 +212,12 @@ let main argv =
     // i can use this to generate my node info
     | Shape.FSharpFunc x ->
         printfn "domain:%A" x.Domain
-        printfn "codomain:%A" x.CoDomain
+        printfn "codomain:%A" x.CoDomain *)
     //printfn "run test %A" (VisProg.Test2.run())
     //runner starter
     //test()
 //    let res = runner2 starter
+    runTest()
     Async.RunSynchronously <| Async.Sleep 10000
     //as we can see her the domain is allways the first input type and the codomain is the rest. This is becase of currying.
     // this means that a simple way of implimenting multi-input nodes is to just nest two nodes inside one another

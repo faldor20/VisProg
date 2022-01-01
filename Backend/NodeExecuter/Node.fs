@@ -326,18 +326,17 @@ let inline getTupleTypes (tupleType: Type) =
     | _ -> failwith "not a tuple"
 
 ///``fn`` is a tuple ->IObservable< ^T >
-let inline createFirstNodeTemplate< ^T, ^U> (fn: ^U -> IObservable< ^T >) name description outputName =
+let inline createFirstNodeTemplate< ^T, ^U> boxer (fn: ^U -> IObservable< ^T >)  name description outputName =
     let nodeInfo =
         { Name = name
           Description = description
           OutputNames = [ outputName ]
           InputNames = [ "Start" ] }
 
-    let inputs =
-        getTupleTypes typeof< ^U> |> Array.toList
+    let inputs =[typeof< ^U>] 
 
     let output = typeof< ^T>
-    let boxedfn = anyUncurryAndBoxFn fn (inputs.Length)
+    let boxedfn =(fun x-> fn(unbox x)|>Observable.map(fun x->box x)) 
     //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
     //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
     FirstNodeTemplate(boxedfn >> unbox >> (Observable.map box) >> box, inputs, output, nodeInfo)

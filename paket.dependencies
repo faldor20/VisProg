@@ -1,5 +1,5 @@
 source https://api.nuget.org/v3/index.json
-framework: net50
+framework: net60
 storage: none
 
 nuget taskbuilder.fs 
@@ -14,7 +14,7 @@ nuget Fable.Mocha 2.9.1
 nuget Feliz 1.45.0
 nuget Feliz.Router 3.8.0
 nuget FSharp.Control.Reactive 5.0.2
-nuget FSharp.Core >= 5.0
+nuget FSharp.Core >= 6.0
 nuget Microsoft.NET.Test.Sdk 16.7.1
 nuget TypeShape 9.0.0
 nuget Unquote 6.1.0
