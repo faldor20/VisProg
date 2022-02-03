@@ -245,37 +245,73 @@ let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (o
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
         NonGenericNodeTemplate(boxedFunc, inputs, output.Type, nodeInfo)
     | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
+    
 let inline createMiddleNodeTemplate< ^T ,^U> (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
-    match shapeof< ^T ->  ^U> with
-    | Shape.FSharpFunc x ->
-        let rec getInputs (fn: IShapeFSharpFunc) inputs =
-            let fnType=fn.Domain.Type
-            printfn "is genereic %A" fnType.IsGenericType
-            printfn "is genericParamater %A" fnType.IsGenericParameter
-            printfn "is genericmethodParam %A" fnType.IsGenericMethodParameter
-            printfn "is genericTypeDef %A" fnType.IsGenericTypeDefinition
-            let newInputs =( SocketType.Standard fnType) :: inputs
+
+    let rec extractGenerics  generics (typ:Type)=
+        printfn "getting the generics type %A" typ
+        let args= typ.GenericTypeArguments
+        if not typ.IsGenericType then 
+            printfn "received a non-generic type%A" generics
+            generics
+        else if args.Length=0 then typ::generics
+        else args|>Array.toList|>List.collect (extractGenerics generics)
+        
+    let rec convertGeneric (mapping:Map<string,int>) (typ:Type)=
+        if not typ.IsGenericType then  
+            SocketType.Standard typ
+        else if typ.GenericTypeArguments.Length>0 then
+            //TODO! Not tail recursive. Shouldn't need to be but worth noting.
+            SocketType.Generic (GenericType.ComplexType (typ,typ.GenericTypeArguments|>Array.map (convertGeneric mapping)))
+        else 
+            SocketType.Generic(GenericType.SingleType( mapping|>Map.find typ.Name))
             
-            match fn.CoDomain with
-            | Shape.FSharpFunc x -> getInputs x newInputs
-            | output -> (newInputs, output)
+    let boxedFunc = boxer fn
+        //printfn "type:%A" x
+        //printfn "inputs %A" inputs
+    let (funcName, funcInputs) = DocumentGetter.GetInfo(fn)
 
-        let inputs, output = getInputs x []
-        //let boxedFunc = anyboxer fn (inputs.Length)
-        let boxedFunc = boxer fn
-        printfn "type:%A" x
-        printfn "inputs %A" inputs
-        let (funcName, funcInputs) = DocumentGetter.GetInfo(fn)
+    let nodeInfo =
+        {   
+            Name = funcName
+            InputNames = (Array.toList funcInputs)
+            Description = (description)
+            OutputNames = [ (outputName) ] 
+        }
+    let methodInfo=fn.GetType().DeclaringType.GetMethod(nameof fn)
 
-        let nodeInfo =
-            { Name = funcName
-              InputNames = (Array.toList funcInputs)
-              Description = (description)
-              OutputNames = [ (outputName) ] }
+    printfn "Got method Info for func %A" fn
+    let param=methodInfo.GetParameters()
+    printfn "Got param info for function"
+    let types=param|>Array.map(fun x ->x.ParameterType)
+    printfn "Got param types  for function"
+    let genericsList= 
+        types
+        |>Array.append [|methodInfo.ReturnType|] //Don't forget to add in the return type just incase it is some other generic
+        |>Array.filter(fun x->x.IsGenericType)  
+        |>Array.collect (extractGenerics []>>List.toArray)
+    //I'm really not a fan f using the type name sting here, but we ``Type`` does not impliment comparison,
+    //so we have to use the name as a proxy
+    let typeMapping= 
+        genericsList
+        |>Array.indexed
+        |>Array.map(fun (i,x)->(x.Name,i))
+        |>Map.ofArray
+    printfn"Made generics list and type mappings %A" typeMapping
+    //get a list of all unique generics
+    //generate an array whetehr the index is the param number and 
+    //the content is the gnerics index
+    let socketTypes=
+        types|>Array.map (convertGeneric typeMapping)
+
+    let outputType=methodInfo.ReturnType|>convertGeneric typeMapping
+
+    
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
-        MiddleNodeTemplate( inputs, SocketType.Standard output.Type,boxedFunc, nodeInfo)
-    | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
+    MiddleNodeTemplate( socketTypes|>Array.toList,outputType,boxedFunc, nodeInfo)
+
+    //| _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
 
 (* let inline objectifyTuple (tuple: ^U) =
     let boxed = (box tuple)

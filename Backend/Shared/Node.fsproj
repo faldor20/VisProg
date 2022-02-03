@@ -10,5 +10,9 @@
     <Compile Include="FunctionalNode.fs" />
     <Compile Include="NodeFuncs.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharpx.Collections" Version="3.0.1" />
+    <PackageReference Include="FSharpx.Collections.Experimental" Version="3.0.1" />
+  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

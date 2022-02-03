@@ -60,7 +60,7 @@ type StartingNode =
       Fn: obj -> obj
       NextNodes: Node list }
  *)
-let FuncRunner (inputs: obj array) (firsts: FirstNode list) (startingNode: StartingNode) =
+let FuncRunner (inputs: obj array) (firsts: MiddleNode list) (startingNode: MiddleNode) =
     let mutable readyInputs = new Dictionary<Guid, (int * obj) list>()
 
 
@@ -150,7 +150,7 @@ let FuncRunner (inputs: obj array) (firsts: FirstNode list) (startingNode: Start
 
 
 
-let runner2 (startingNodes: FirstNode list) =
+let runner2 (startingNodes: MiddleNode list) =
     let mutable readyInputs =
         new Dictionary<Guid, (int * IObservable<'h>) list>()
     ///Adds the lastNode to the list of nodes that are ready to be input into this node

@@ -1,6 +1,6 @@
-#r "./bin/Debug/net5.0/Executer.dll"
-#r "./bin/Debug/net5.0/Node.dll"
-#r "./bin/Debug/net5.0/TypeShape.dll"
+#r "./bin/Debug/net6.0/Executer.dll"
+#r "./bin/Debug/net6.0/Node.dll"
+#r "./bin/Debug/net6.0/TypeShape.dll"
 open VisProg.BackEnd.Node
 open VisProg.Executer
 open VisProg.Shared.Node

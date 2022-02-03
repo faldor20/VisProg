@@ -10,3 +10,4 @@ let z = plus 1 2
 let x = plus 1.1 2.2
 let evalTest z = 
     boxFn2 plus
+

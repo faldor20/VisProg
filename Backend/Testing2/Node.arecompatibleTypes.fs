@@ -43,3 +43,11 @@ let ``Unknown Type doesn't work when rest doesn't match``()=
     let b= typeof<int*UnknownType>
     let compatible=Funcs.areCompatibleTypes a b
     Assert.False compatible
+
+//===Testing Nodes===
+[<Fact>]
+let NestedUnkownTypes()=
+    let a= typeof<'a list  >
+    let b= typeof<int*UnknownType>
+    let compatible=Funcs.areCompatibleTypes a b
+    Assert.False compatible

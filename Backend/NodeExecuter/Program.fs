@@ -183,19 +183,19 @@ let runTest()=
 
     let firstTemp=createFirstNodeTemplate boxFn first "name" "firstlist" "numbers"
     let secondTemp=createFirstNodeTemplate boxFn second "name" "firstlist" "numbers"
-    let firststartNode= FirstNode(firstTemp)
-    let secondstartNode=FirstNode(secondTemp)
+//    let firststartNode= FirstNode(firstTemp)
+//    let secondstartNode=FirstNode(secondTemp)
     let multi= MiddleNode(multiNode,[||])
     let div2=MiddleNode(div2Node,[||])
     let prnt= MiddleNode(prntNode,[||])
 
     let jn=VisProg.Shared.Node.Funcs.join
-    firststartNode|>jn 0 multi
-    secondstartNode|>jn 0 div2
+    //firststartNode|>jn 0 multi
+//    secondstartNode|>jn 0 div2
     div2|>jn 1 multi
     multi|>jn 0 prnt
 
-    VisProg.Executer.runner2 [firststartNode;secondstartNode]
+    //VisProg.Executer.runner2 [firststartNode;secondstartNode]
     ()
     
 

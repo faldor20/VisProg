@@ -5,14 +5,6 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="testing.fsx" />
-    <Compile Include="DataDriven.fs" />
-
-    <Compile Include="Node.fs" />
-    <Compile Include="Executer2.fs" />
-    <Compile Include="SocketChecker.fs" />
-    <Compile Include="Executer.fs" />
-    <Compile Include="Test2.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

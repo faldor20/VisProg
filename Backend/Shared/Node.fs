@@ -107,13 +107,6 @@ let hasImplicitConversion (source: Type) (destination: Type) =
       Last: Node option array } *)
 
 
-///A Complex type is a type that contains a generic type param, eg: ``list<int>`` represented as (list,[index of type param])
-///a SimpleType is just the index of a type like ``int``
-type GenericType =
-    | SingleType of int
-    | ComplexType of (Type * int list)
-
-
 
 type NodeInfo =
     { Name: string
@@ -145,7 +138,7 @@ type FirstNodeTemplate(fn, input, output, nodeInfo) =
 type Node(template) =
     member val ID: Guid = Guid.NewGuid()
     member val Template: NodeTemplate = template
-    member val Next: Node list = [] with get, set
+    
     abstract member outputType : Type
     abstract member inputType : int -> Type
 

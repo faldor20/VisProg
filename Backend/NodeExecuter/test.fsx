@@ -40,9 +40,10 @@ let codomain<'T> : 'T -> Type =
         | other -> other
 
     fun f -> f.GetType() |> traverse
-
+let test a b c=
+    a
 // examples:
-printfn "%A" <| codomain 2
+printfn "test Type=%A" <| (codomain (test))
 
 printfn "%A"
 <| (codomain
