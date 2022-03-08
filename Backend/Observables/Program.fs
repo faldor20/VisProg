@@ -8,9 +8,10 @@ open FSharp.Control.Reactive
 open VisProg.Shared.Node
 open TypeShape
 open TypeShape.Core
-
-
-
+open FSharp.Quotations
+open FSharp.Quotations.Patterns
+open FSharp.Quotations.Evaluator
+open FSharp.Quotations.DerivedPatterns
 (* 
 let firstObservable a=
     Observable.ofSeq([2;4;6;8])
@@ -158,26 +159,62 @@ let  findGenerics (fn: ^T -> ^U) =
     (a,b)
 let listTest a b=
     a@b *)
-let fn  (p1:'a) (p2:'a) (p3:'b)(p4:list<'b>)=
-    p1
-let getparams (fn2: 'U-> 'T)=
-    let typ= fn2.GetType()
-    let dcl=fn2.GetType().DeclaringType
-    printfn "dcl %A Name: %A"dcl (fn2.GetType().FullName)
-    let meth=dcl.GetMethod(nameof fn2)
-    printfn "meth %A" meth
-    let parm=meth.GetParameters()
-    ()
-let id2 ba=
-    ba
+
+
+
+(* 
+let a (e:Expr)=
+    match e with
+    | Patterns.Lambda(_, (Patterns.Call(None, methodInfo, _))) -> 
+        let param=methodInfo.GetParameters()
+        printfn "%A" param
+    | _ -> failwith "Unexpected input" *)
+(* let b (e:Expr<'T>)=
+    match e with
+    | Patterns.Lambda(_, (Patterns.Call(None, methodInfo, _))) -> 
+        let param=methodInfo.GetParameters()
+        printfn "%A" param
+    | _ -> failwith "Unexpected input" *)
+
+let inline runfunc (f: obj) (args:obj array)=
+    match f with
+    | :? FSharpFunc<_,FSharpFunc<_,_>> -> (f:?>FSharpFunc<obj,FSharpFunc<obj,obj>>) (args[0]) (args[1])
+    | :? FSharpFunc<_,_> -> (f:?>FSharpFunc<obj,obj>) args[0]
+    
+let inline applyer< ^T, ^U > (fn: ^T -> ^U) (args: obj array)=
+    match args.Length with
+    |1-> ((fn|>unbox) (args[0]|>unbox)) |>box
+    |2-> ((fn|>unbox) (args[0]|>unbox) (args[1]|>unbox))|>box
+    |3-> ((fn|>unbox) (args[0]|>unbox)  (args[1]|>unbox)(args[2]|>unbox))|>box
+    |4-> ((fn|>unbox) (args[0]|>unbox)  (args[1]|>unbox)(args[2]|>unbox) (args[4]|>unbox))|>box
+
+
+
+    
+
 [<EntryPoint>]
 let main args=
-    let parms= getparams id2
-    //let inf=a.GetType().GetMethod(nameof a)
+(*     let add1={methodInfo =tt.ob add1;nextnode=}
+    let addNode={methodInfo=tt.ob add;nextnode=} *)
+    (* let expression=
+        zipper (maker (makeN [3;4;2])) (maker( makeN [3;4;2]))
+        |>mapper (<@@tupleize add@@>)
+        |>mapper <@@printr@@>
+    printfn "%A"expression
+    let compiled= expression|>QuotationEvaluator.EvaluateUntyped :?>IObservable<_>
+ 
+    let q= <@@ Observable.map printr  (Observable.map ( tupleize add ) ( Observable.zip(makeN([3;4;2])) (makeN([1;4;9])))) @@>
+    let res=q|>QuotationEvaluator.EvaluateUntyped :?>IObservable<_>
+    res|>Observable.wait
+//    let res=applyer add [|1;2|]
+    let res=(QuotationEvaluator.Evaluate <@id2@>)
+    
+    let res=runfunc add [|1;2|] 
+    tt.ob id2
     let info=fn.GetType().DeclaringType.GetMethod(nameof fn)
     printfn "%A" info
     printfn "%A" (info.GetParameters()|>Array.map(fun x->x.ParameterType))
-    let param= info.GetParameters()
+    let param= info.GetParameters() *)
     //param[0].ParameterType.generic
 (*     let info=a.GetType().DeclaringType.GetMethod(nameof a)
     let params=info.GetParameters()

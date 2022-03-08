@@ -1,3 +1,5 @@
 FSharp.Control.Reactive
 TypeShape
 FSharp.Core
+DelegatesFactory
+FSharp.Quotations.Evaluator

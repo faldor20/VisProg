@@ -4,9 +4,11 @@ storage: none
 
 
 nuget coverlet.collector 1.3.0
+nuget DelegatesFactory 1.2.0
 #safe stack
 nuget Fable.Remoting.Giraffe
 nuget Feliz.ReactFlow 0.2.4
+nuget FSharp.Quotations.Evaluator 2.1.0
 nuget Saturn
 nuget Expecto
 
@@ -46,4 +48,3 @@ nuget Nuke.Common
 nuget Serilog.AspNetCore 
 nuget Serilog.Sinks.Console 
 nuget Zanaptak.TypedCssClasses 
-

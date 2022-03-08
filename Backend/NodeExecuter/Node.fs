@@ -12,7 +12,74 @@ open FSharp.Quotations
 open FSharp.Quotations.Patterns
 open FSharp.Quotations.DerivedPatterns
 open FSharp.Quotations.ExprShape
+open FSharp.Quotations.Evaluator
+open FSharp.Linq.RuntimeHelpers
 open TypeShape
+open System.Collections.Concurrent
+open System.Linq.Expressions
+
+let (?) (this : 'Source) (prop : string) : 'Result =
+    let p = this.GetType().GetProperty(prop)
+    p.GetValue(this, null) :?> 'Result
+module EfficientDelegate =
+
+
+    type VoidType = unit
+
+    type DelegatePair( del:Delegate,  argumentCount:int,  hasReturnValue:bool)=
+        member x.Delegate=del
+        member x.argumentCount=argumentCount
+        member x.HasReturnValue=hasReturnValue
+
+    let CreateDelegate( method:Reflection.MethodInfo)=
+        
+        let argTypes= 
+            [| method.ReturnType |]
+            |>Array.append
+                (method.GetParameters()
+                |>Array.map(fun p->p.ParameterType)   ) 
+            
+        printfn "type args %A" argTypes
+
+        let newDelType = Expression.GetDelegateType(argTypes);
+
+        let newDel = Delegate.CreateDelegate(newDelType, method);
+
+ 
+
+        DelegatePair(newDel, argTypes.Length - 1, method.ReturnType <> typeof<VoidType>)
+
+    
+
+ 
+
+    let TooManyArgsMessage = "Invokes for more than 10 args are not yet implemented"
+
+ 
+
+
+ 
+
+    let delegateMap = new ConcurrentDictionary<Tuple<string, string>, DelegatePair>();
+
+    let EfficientInvoke( methodInfo:Reflection.MethodInfo,  args:obj[]):obj=
+        let key = (methodInfo.Name,methodInfo.DeclaringType.Name)
+        let delPair = delegateMap.GetOrAdd(key, CreateDelegate methodInfo);
+        if (delPair.HasReturnValue) then
+            match (delPair.argumentCount) with
+            |0-> delPair?Delegate()
+            |1-> delPair?Delegate(args[0])
+            |2-> delPair.Delegate.DynamicInvoke(args)          
+            |3-> delPair?Delegate(args[0], args[1], args[2])
+            |4-> delPair?Delegate(args[0], args[1], args[2], args[3])
+            |5-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4])
+            |6-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4], args[5])
+            |7-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4], args[5], args[6])
+            |8-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7])
+            |9-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8])
+            |10-> delPair?Delegate(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9])
+            |_-> raise <|NotImplementedException(TooManyArgsMessage)
+        else ()
 
 type CompiledExpr<'T> = Environment -> 'T
 
@@ -147,22 +214,11 @@ let compile (e: Expr<'T>) : unit -> 'T =
 
 let run (e: Expr<'T>) : 'T = compile e ()
 
-type DocumentGetter =
-    static member GetInfo([<ReflectedDefinition>] x: Expr<_ -> _>) =
-        match x with
-        | DerivedPatterns.Lambdas (_, Patterns.Call (_, methodInfo, _)) ->
-            let paramaters =
-                methodInfo.GetParameters()
-                |> Array.map (fun x -> x.Name)
 
-            let name = methodInfo.Name
-            (name, paramaters)
-        | ValueWithName (rest,t,name)->
-            printfn "valuewithName %A, type: %A" rest (rest.GetType())
-            (name,[|"params"|])
-        |e->
-            printfn "getting info un usnuported type of %A  Type: %A" e e.Type
-            ("",[|""|])
+let rec funInfo = function
+| Patterns.Call(None, methodInfo, _) -> methodInfo
+| Patterns.Lambda(_, expr) -> funInfo expr
+| _ -> failwith "Unexpected input"
 
 
 let inline boxHelper (fn: ^a -> ^b) above (x: obj) : obj = x |> (unbox >> fn >> above >> box)
@@ -219,7 +275,7 @@ let getFuncTypes (fn: ^a -> ^b) =
     let output = typedefof< ^b>
     (input, output)
 
-let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
+(* let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
     match shapeof< ^T ->  ^U> with
     | Shape.FSharpFunc x ->
         let rec getInputs (fn: IShapeFSharpFunc) inputs =
@@ -245,50 +301,53 @@ let inline createBoxedNodeTemplate (fn: ^T -> ^U) boxer (description: string) (o
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
         NonGenericNodeTemplate(boxedFunc, inputs, output.Type, nodeInfo)
     | _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
-    
-let inline createMiddleNodeTemplate< ^T ,^U> (fn: ^T -> ^U) boxer (description: string) (outputName: string) =
+     *)
 
+let getSocketTypes ( methodInfo:Reflection.MethodInfo ) isFirst =
+    //TODO: I Call these gneric type iterators a number of times, it may be possible to do it less times overall
     let rec extractGenerics  generics (typ:Type)=
         printfn "getting the generics type %A" typ
         let args= typ.GenericTypeArguments
-        if not typ.IsGenericType then 
+        if  not (typ.IsGenericType||typ.IsGenericParameter) then 
             printfn "received a non-generic type%A" generics
             generics
         else if args.Length=0 then typ::generics
         else args|>Array.toList|>List.collect (extractGenerics generics)
-        
-    let rec convertGeneric (mapping:Map<string,int>) (typ:Type)=
-        if not typ.IsGenericType then  
-            SocketType.Standard typ
-        else if typ.GenericTypeArguments.Length>0 then
-            //TODO! Not tail recursive. Shouldn't need to be but worth noting.
-            SocketType.Generic (GenericType.ComplexType (typ,typ.GenericTypeArguments|>Array.map (convertGeneric mapping)))
-        else 
-            SocketType.Generic(GenericType.SingleType( mapping|>Map.find typ.Name))
-            
-    let boxedFunc = boxer fn
-        //printfn "type:%A" x
-        //printfn "inputs %A" inputs
-    let (funcName, funcInputs) = DocumentGetter.GetInfo(fn)
+    //beucase we don't know if types with params have generics we have to iterate intoa  type first to find out if it contains generics and then 
+    //iterate again to consttruct the generic type, or just use a non-generic type
+    let hasGenerics (typ:Type)=
+        let rec intern (typ:Type)=
+            let args= typ.GenericTypeArguments
+            if not (typ.IsGenericType||typ.IsGenericParameter) then 
+                [|false|]
+            else if args.Length=0 then[|true|]
+            else args|>Array.collect(intern )
+        let generic=(intern typ )|>Array.contains true
+        if not generic then printfn "type %A has no generics" typ
+        generic
 
-    let nodeInfo =
-        {   
-            Name = funcName
-            InputNames = (Array.toList funcInputs)
-            Description = (description)
-            OutputNames = [ (outputName) ] 
-        }
-    let methodInfo=fn.GetType().DeclaringType.GetMethod(nameof fn)
-
-    printfn "Got method Info for func %A" fn
+    let convertSocket  (mapping:Map<string,int>) (typ:Type)=
+        let rec convertGeneric (mapping:Map<string,int>) (typ:Type)=
+            if not (typ.IsGenericType||typ.IsGenericParameter) then  
+                SocketType.Standard typ
+            else if typ.GenericTypeArguments.Length>0 then
+                //TODO! Not tail recursive. Shouldn't need to be but worth noting.
+                SocketType.Generic (GenericType.ComplexType (typ.GetGenericTypeDefinition(),typ.GenericTypeArguments|>Array.map (convertGeneric mapping)))
+            else 
+                SocketType.Generic(GenericType.SingleType( mapping|>Map.find typ.Name))
+        //If the type has no generics at all we can just return it as a standard type
+        if not (typ.IsGenericParameter||typ.IsGenericType)||not (typ|>hasGenerics) then  
+                SocketType.Standard typ
+        else convertGeneric mapping typ
     let param=methodInfo.GetParameters()
     printfn "Got param info for function"
     let types=param|>Array.map(fun x ->x.ParameterType)
     printfn "Got param types  for function"
+
     let genericsList= 
         types
         |>Array.append [|methodInfo.ReturnType|] //Don't forget to add in the return type just incase it is some other generic
-        |>Array.filter(fun x->x.IsGenericType)  
+        |>Array.filter(fun x->x.IsGenericType||x.IsGenericParameter)  
         |>Array.collect (extractGenerics []>>List.toArray)
     //I'm really not a fan f using the type name sting here, but we ``Type`` does not impliment comparison,
     //so we have to use the name as a proxy
@@ -296,22 +355,88 @@ let inline createMiddleNodeTemplate< ^T ,^U> (fn: ^T -> ^U) boxer (description: 
         genericsList
         |>Array.indexed
         |>Array.map(fun (i,x)->(x.Name,i))
+        |>Array.distinctBy(fun (x,i)-> x)
+        //|>Array.groupBy(fun (x,i)->x)
+        //|>Array.map (fun (i,group)->i,group|>Array.map(fun (x,i)-> i))
         |>Map.ofArray
     printfn"Made generics list and type mappings %A" typeMapping
     //get a list of all unique generics
     //generate an array whetehr the index is the param number and 
     //the content is the gnerics index
     let socketTypes=
-        types|>Array.map (convertGeneric typeMapping)
-
-    let outputType=methodInfo.ReturnType|>convertGeneric typeMapping
+        types|>Array.map (convertSocket typeMapping)
+    let outputType=
+            let returnType=methodInfo.ReturnType
+            if isFirst then
+            //TODO: no longer necissary beucase we already know the first func returns iobservable
+                if returnType.GetGenericTypeDefinition() = typedefof<IObservable<_>> then
+                    let ret=methodInfo.ReturnType.GetGenericArguments()[0]
+                    printfn "got starting node that returns %A" ret
+                    ret|>convertSocket typeMapping
+                    
+                else raise<| ArgumentException $"tried to create a a starting node without returning IOBservable. returning: {returnType}"
+            else methodInfo.ReturnType|>convertSocket typeMapping
 
     
+    socketTypes,outputType
+let getNodeInfo (methodInfo:Reflection.MethodInfo) description outName=
+    let funcName,funcInputs=methodInfo.Name,methodInfo.GetParameters()|>Array.map(fun x->x.Name)
+    {   
+        Name = funcName
+        InputNames = (Array.toList funcInputs)
+        Description = (description)
+        OutputNames = [ (outName) ] 
+    }   
+
+let inline applyer< ^T, ^U > (fn: ^T -> ^U) (args: obj array)=
+    match args.Length with
+    |1-> ((fn|>unbox) (args[0]|>unbox)) |>box
+    |2-> ((fn|>unbox) (args[0]|>unbox) (args[1]|>unbox))|>box
+    |3-> ((fn|>unbox) (args[0]|>unbox) (args[1]|>unbox) (args[2]|>unbox))|>box
+    |4-> ((fn|>unbox) (args[0]|>unbox) (args[1]|>unbox) (args[2]|>unbox) (args[4]|>unbox))|>box
+    
+type DocumentGetter =
+    static member GetInfo([<ReflectedDefinition>] x: Expr<_ -> _>) =
+        match x with
+        | DerivedPatterns.Lambdas (_, Patterns.Call (_, methodInfo, _)) ->
+            
+            (methodInfo)
+        | ValueWithName (rest,t,name)->
+            printfn "valuewithName %A, type: %A" rest (rest.GetType())
+            raise (ArgumentException("Not given a function"))
+        |e->
+            printfn "getting info un usnuported type of %A  Type: %A" e e.Type
+            raise (ArgumentException("Not Given a function"))
+    static member CreateMiddleNodeTemplate([<ReflectedDefinition>]fn: Expr<'T>, description: string, outputName: string, ?isFirst:bool) =
+        printfn "Getting method Info for func %A" fn
+        //for some reason this version of the method info doesn't include proper generic types
+        let badMethodInfo=(funInfo fn)
+        let methodInfo=badMethodInfo.DeclaringType.GetMethod(badMethodInfo.Name)
+
+        let socketTypes,outputType=getSocketTypes methodInfo false
+        let nodeInfo= getNodeInfo (methodInfo:Reflection.MethodInfo) description outputName
+        let paramTypes=methodInfo.GetParameters()|>Array.map(fun x->x.ParameterType)
+        //let fn2= fn|>QuotationEvaluator.Evaluate|>boxer
+        (* let fn= (fun x->
+            EfficientDelegate.EfficientInvoke(methodInfo,x)) *)
+        //let boxedFunc = boxer fn
+        
         //TODO it would be good to impliment a multibackward and multi. but for now i'm only allowing single outputs. You can decompose a tuple if thats what you want to do
         //TODO: i must be careful when mkaing an instance of a node to make sure it dosn't end up with a shared refence
-    MiddleNodeTemplate( socketTypes|>Array.toList,outputType,boxedFunc, nodeInfo)
+        MiddleNodeTemplate( socketTypes|>Array.toList,outputType,(fun x->failwithf "NOOOOOOO!!!!";x),methodInfo, nodeInfo)
+    static member CreateFirstNodeTemplate([<ReflectedDefinition>]fn: Expr<'T->IObservable<'U>>,  description: string, outputName: string) =
+        printfn "Getting method Info for func %A" fn
+        let badMethodInfo=(funInfo fn)
+        let methodInfo=badMethodInfo.DeclaringType.GetMethod(badMethodInfo.Name)
 
-    //| _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
+        let socketTypes,outputType=getSocketTypes methodInfo true
+        let nodeInfo= getNodeInfo (methodInfo:Reflection.MethodInfo) description outputName
+        //let fn2= fn|>QuotationEvaluator.Evaluate|>boxer
+    (*     let fn= 
+            (fun x->)//>> unbox >> (Observable.map box) >> box *)
+        
+        MiddleNodeTemplate( socketTypes|>Array.toList,outputType,(fun x->failwithf "NOOOOOOO!!!!";x),methodInfo, nodeInfo)
+        //| _ -> failwith "this should be impossible, yoou should never be able to pass anything but a function in as fn"
 
 (* let inline objectifyTuple (tuple: ^U) =
     let boxed = (box tuple)

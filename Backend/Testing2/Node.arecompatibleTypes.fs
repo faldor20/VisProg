@@ -6,7 +6,8 @@ open VisProg.BackEnd.Node
 open Swensen.Unquote
 open Xunit
 open System
-open VisProg.Shared.Node.GenericNode
+open VisProg.BackEnd.Node
+open VisProg.Shared.Node
 [<Fact>]
 let ``Unknown Type works for any type``()=
     let a= typeof<int list >

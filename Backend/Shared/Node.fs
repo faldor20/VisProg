@@ -117,7 +117,7 @@ type NodeInfo =
 [<AbstractClass>]
 type NodeTemplate(fn) =
     class
-        member x.Fn : obj -> obj = fn
+        member x.Fn : obj array  -> obj = fn
         abstract member InputsCount : int
     end
 

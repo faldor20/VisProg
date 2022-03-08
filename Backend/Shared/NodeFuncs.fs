@@ -67,17 +67,19 @@ let rec checkandUpdateDownStreamNodes (dest:MiddleNode) typesList=
     res
 
 let join socketIndex (dest: MiddleNode) (source: MiddleNode) =
+    printfn "request to join node %A inot node %A" source.template.NodeInfo.Name dest.template.NodeInfo.Name
     let outputType = source.outputType
     let inputType = dest.inputType socketIndex
-
+    printfn "Incoming type is %A current type is is %A" outputType inputType
     let typesList= dest.getNewTypesList socketIndex inputType
     let res=checkandUpdateDownStreamNodes dest typesList
     if not res then failwithf "downstream type not compatible with the change in generics this connection would incur."
     if areCompatibleTypes outputType inputType then
+        
         dest.registerInputNode socketIndex source
         source.Next <- (dest :> MiddleNode) :: source.Next
     else
-        failwith (sprintf "OH no, the output type of %A does not match the input type of %A " source dest)
+        raise<| ArgumentException(sprintf "OH no, the output type of sourceNode: %A does not match the input type of destnode: %A " source dest,"source")
     
 let disconnect inputNum (dest: MiddleNode) (source:MiddleNode) =
 

@@ -17,6 +17,7 @@ and SocketType =
 type UnknownType = obj
 
 let rec resolveType (typesList: Type option array) (genericTypes: SocketType) =
+    printfn "resolving type %A using typelist %A" genericTypes typesList
     match genericTypes with
     |Standard s->s
     |Generic g->
@@ -32,12 +33,12 @@ let rec resolveType (typesList: Type option array) (genericTypes: SocketType) =
 
 
 let updateTypesList (typesList:Type option array) mySocketType (incomingType:Type)=
+    printfn "updating typeslist for socket %A with typ %A"mySocketType incomingType
     //We return a new copy to makes sure immutability is maintained
     //This is so we can simulate what a type change wuold do to downsream nodes
     let typesList =typesList.Clone() :?>(Type option array)
     
     let args = incomingType.GetGenericArguments()
-
 
     //We already know that the incoming type matches the type of the socket. And so they are structured the same
     //So as we destructure the socket we can destruture the args along with it and assign generics as they come
@@ -47,44 +48,59 @@ let updateTypesList (typesList:Type option array) mySocketType (incomingType:Typ
         |Generic g->
             match g with
             | SingleType index ->
-                if args.Length > 0 then
-                    raise (
-                        new ArgumentException "Tried to input a complex generic type into a simple genericType input"
-                    )
-                typesList.[index] <- Some incomingType 
+                printfn "Assigning type index %i with new type %A" index typ
+                typesList.[index] <- Some typ 
 
             | ComplexType (baseType, sockets) ->
                 let args=typ.GetGenericArguments()
                 ( args,sockets)||> Array.iter2 dissasembleType
 
+
     dissasembleType incomingType mySocketType
     typesList
-type MiddleNodeTemplate(inputTypes, outputTypes, fn, nodeInfo) =
+type MiddleNodeTemplate(inputTypes, outputTypes, fn, methodInfo, nodeInfo) =
     inherit NodeTemplate(fn)
+    member x.methodInfo:Reflection.MethodInfo = methodInfo
     member x.InputTypes : SocketType list = inputTypes
     member x.OutputType : SocketType = outputTypes
     override x.InputsCount = inputTypes.Length
-    member val NodeInfo: NodeInfo = nodeInfo
+    member x.NodeInfo: NodeInfo = nodeInfo
+    
 
-type MiddleNode(template: MiddleNodeTemplate, typesList) =
+
+type MiddleNode(template: MiddleNodeTemplate,?inputs) =
     inherit Node(template)
-    let mutable _typesList : Type option array = typesList
+
+    let mutable _typesList : Type option array = (fun x->None)|>Array.init (template.methodInfo.GetGenericArguments().Length)
+
+    let _getNewTypesList socketNum incomingType=
+        let mySocketType = template.InputTypes.[socketNum]
+        updateTypesList _typesList mySocketType incomingType
 
     let last =
         Array.init (template.InputTypes.Length) (fun x -> None)
+    do ((inputs|>Option.defaultValue [||])|>Array.iteri(fun i t->
+            let newList=( _getNewTypesList i (t.GetType()))
+            printfn "Created new Typeslist %A" newList
+            _typesList<- newList 
+            ))
+        
     member val Next: MiddleNode list = [] with get, set
     member val template=template
     member val Last: MiddleNode option array = last
-    member x.inputs : obj array = [||] //This needs to be a hashmap or map with int as keys each int representing a paricular socket
-    member x.getNewTypesList socketNum incomingType=
-        let mySocketType = template.InputTypes.[socketNum]
-        updateTypesList _typesList mySocketType incomingType
+    member val inputs: obj array =     
+        let inp=inputs|>Option.defaultValue[||] //This needs to be a hashmap or map with int as keys each int representing a paricular socket
+        inp
+    //TODO I need to feed the input types into getNewTypesList, that would allow supporting starting nodes with generic functions that have there generics decided by the inputs
     ///Used to register a node as inputting to this socket
     ///Sets any generic types associated with this input to the types coming from the source node
+    member x.getNewTypesList= _getNewTypesList
     member x.registerInputNode socketNum (node: MiddleNode) =
-
+        
         last.[socketNum] <- Some node
-        _typesList<- (x.getNewTypesList socketNum node.outputType)
+        let newList=(_getNewTypesList socketNum node.outputType)
+        printfn "Created new Typeslist %A" newList
+        _typesList<- newList
         
     ///Used to remove a socket connection 
     /// Does things like reset the generic status of the socket
@@ -96,12 +112,12 @@ type MiddleNode(template: MiddleNodeTemplate, typesList) =
             |Standard _->()
             |Generic g->
                 match g with
-                | SingleType index ->typesList.[index] <- None
+                | SingleType index ->_typesList.[index] <- None
                 | ComplexType (baseType, sockets) ->
                     ( sockets)|> Array.iter removeGenerics
         removeGenerics socket
-
-
+    
+    
 
     override x.outputType =
         template.OutputType |> resolveType _typesList
@@ -117,3 +133,14 @@ type MiddleNode(template: MiddleNodeTemplate, typesList) =
         |> resolveType typesList
     member x.typesList=_typesList
     member x.updateTypesList list= _typesList<-list
+
+    member x.generateMethod()=
+        
+        if _typesList.Length>0 then
+            if  _typesList|>Array.contains None then
+                failwithf "Cannot generate method for node without all type arguments: typlesList: %A" _typesList
+            let methInfo=template.methodInfo
+            methInfo.MakeGenericMethod(_typesList|>Array.map(fun x->x.Value))
+        else template.methodInfo
+     
+    

@@ -3,8 +3,27 @@ module Tests.NodeTests
 open VisProg.Shared.Node
 open Swensen.Unquote
 open Expecto
+open Expecto.Performance
 open VisProg.Shared.Node.Funcs
 open VisProg.BackEnd.Node
+open FSharp.Control.Reactive
+let id2 (inp:'a)=
+    inp
+let conc (a:'a list) (b:'a list)=
+    a@b
+let intL()=
+    [[0]]|>Observable.ofSeq
+let stL()=
+    [[""]]|>Observable.ofSeq
+let add a b=
+    a+b
+let print b=
+    //printfn "output %A" b
+    ()
+let numberInput (nums: 'a list)=
+    nums|>Observable.ofSeq
+let testSpeed a b =
+    List.iter2(fun x y->add x y|>print) a b
 [<Tests>]
 let tests =
     testList
@@ -29,21 +48,14 @@ let tests =
 
                 res =! (num + 5 + num2)
             }
-            test "generic switch"{
-                let id inp=
-                    inp
-                let conc a b=
-                    a@b
-                let intL()=
-                    [0]
-                let stL()=
-                    [""]
-                let idT=createMiddleNodeTemplate id boxFn "" ""
-                let concT= createMiddleNodeTemplate conc boxFn "" ""
-                let intLT= createMiddleNodeTemplate intL boxFn "" ""
-                let stLT= createMiddleNodeTemplate stL boxFn "" ""
-                let idN=MiddleNode(idT,[|None|])
-                let concN=MiddleNode(concT,[|None|])
+            test "changing types propigates those changes down generics "{
+                let idT=DocumentGetter.CreateMiddleNodeTemplate(id2 ,"id" ,"")
+                let concT= DocumentGetter.CreateMiddleNodeTemplate(conc ,"concatenate list" ,"")
+                let intLT= DocumentGetter.CreateFirstNodeTemplate(intL ," int list start" ,"")
+                let stLT= DocumentGetter.CreateFirstNodeTemplate(stL ,"string list start" ,"")
+                let idN=MiddleNode(idT)
+                let concN=MiddleNode(concT)
+                
                 let intLN1=MiddleNode(intLT,[||])
                 let intLN2=MiddleNode(intLT,[||])
                 let stLN1=MiddleNode(stLT,[||])
@@ -52,8 +64,34 @@ let tests =
                 idN|>join 0 concN
                 intLN2|>join 1 concN
                 intLN1|>disconnect 0 idN
-                stLN1|>join 0 idN
+                Expect.throws(fun ()-> stLN1|>join 0 idN) "DiD not throw exception"
             }
+            
+            test "Simple execution" {
+                let numbers= DocumentGetter.CreateFirstNodeTemplate(numberInput,"sequence input","stream f numbers")
+                let adder= DocumentGetter.CreateMiddleNodeTemplate(add ,"adder","a+b")
+                let printer= DocumentGetter.CreateMiddleNodeTemplate(print, "printer","unit")
+                let speed=DocumentGetter.CreateMiddleNodeTemplate(testSpeed,"speeeed","")
+
+                let timer=System.Diagnostics.Stopwatch()
+                let printN=MiddleNode(printer)
+                let addN=MiddleNode(adder)
+                let inp=(fun x->x+2)|>List.init (1000*1000)
+
+                let speedN=MiddleNode(speed)
+                let startN=  MiddleNode(numbers,[| inp |])
+                let start2N= MiddleNode(numbers,[| inp |])
+                
+                startN|>join 0 addN
+                start2N|>join 1 addN
+                addN|>join 0 printN
+
+                VisProg.Executer.runner3([start2N;startN])
+                printfn"|Done|"
+            
+            }
+            
+            
             test "methodinfo"{
                 let a  (a:'a) (b:'a) (c:'b)(d:list<'b>)=
                     ()
@@ -64,3 +102,51 @@ let tests =
                 ()
             } 
         ]
+[<Tests>]
+let sequencedTests=
+    testSequenced<|testList "perfTests" [
+    test "speedTest"{
+        let numbers= DocumentGetter.CreateFirstNodeTemplate(numberInput,"sequence input","stream f numbers")
+        let adder= DocumentGetter.CreateMiddleNodeTemplate(add ,"adder","a+b")
+        let printer= DocumentGetter.CreateMiddleNodeTemplate(print, "printer","unit")
+        let speed=DocumentGetter.CreateMiddleNodeTemplate(testSpeed,"speeeed","")
+
+        let timer=System.Diagnostics.Stopwatch()
+        let printN=MiddleNode(printer)
+        let addN=MiddleNode(adder)
+        let inp=(fun x->x+2)|>List.init (1000*1000)
+        let speedN=MiddleNode(speed)
+
+        //Mapping over in an inner function
+        let startN=  MiddleNode(numbers,[| [inp] |])
+        let start2N= MiddleNode(numbers,[| [inp] |])
+
+        startN|>join 0 speedN
+        start2N|>join 1 speedN
+        timer.Restart()
+        VisProg.Executer.runner3([start2N;startN])
+        timer.Stop()
+        timer.Reset()
+        printfn "Observable Inner took %Ams"timer.Elapsed.TotalMilliseconds 
+
+        //Using the Observable to map over
+        let startN=  MiddleNode(numbers,[| inp |])
+        let start2N= MiddleNode(numbers,[| inp |])
+        startN|>join 0 addN
+        start2N|>join 1 addN
+        addN|>join 0 printN
+
+        timer.Start()
+        VisProg.Executer.runner3([start2N;startN])
+        timer.Stop()
+        printfn "Observable took %Ams"timer.Elapsed.TotalMilliseconds 
+        timer.Reset()
+        //Uinsg a normal List.map
+        timer.Start()
+        testSpeed inp inp
+        timer.Stop()
+        printfn "List.map took %Ams" timer.Elapsed.TotalMilliseconds
+        
+        }
+
+    ]

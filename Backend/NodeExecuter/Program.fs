@@ -157,6 +157,7 @@ let test () =
     [| d; c |]
     |> Observable.zipArray
     |> Observable.wait
+
 let prnt (a:'a) = 
     printfn "printing %A"a
     1
@@ -168,34 +169,37 @@ let div (a) b =
 let div2 (a)  = 
     printfn "dividing %d by2 " a 
     a/2
-let runTest()=
+let first (a:int):IObservable<int> =
+    let a=1;
+    let res= timer.Elapsed|>Observable.map(fun x->x.SignalTime.Second)
+    res
+let second (a:int list):IObservable<int> =
+    a|>Observable.toObservable
 
-    let prntNode= VisProg.BackEnd.Node.createMiddleNodeTemplate prnt boxFn "prints anything" "outputs an int 1."
-    let multiNode= VisProg.BackEnd.Node.createMiddleNodeTemplate multi boxFn2 "multiplies" "outputs a*b"
-    let divNode= VisProg.BackEnd.Node.createMiddleNodeTemplate div boxFn2 "divides" "output a/b"
-    let div2Node= VisProg.BackEnd.Node.createMiddleNodeTemplate div2 boxFn "diveds a /2" "a/2"
+let runTest()=
+    
+    let prntNode= DocumentGetter.CreateMiddleNodeTemplate(prnt,  "prints anything", "outputs an int 1.")
+    let multiNode= DocumentGetter.CreateMiddleNodeTemplate (multi,  "multiplies", "outputs a*b")
+    let divNode= DocumentGetter.CreateMiddleNodeTemplate (div, "divides", "output a/b")
+    let div2Node= DocumentGetter.CreateMiddleNodeTemplate (div2,  "diveds a /2", "a/2")
     
 
-    let first (a:int)=
-        timer.Elapsed|>Observable.map(fun x->x.SignalTime.Second)
-    let second (a:int)=
-        [2;4;6;8;27;84]|>Observable.toObservable
 
-    let firstTemp=createFirstNodeTemplate boxFn first "name" "firstlist" "numbers"
-    let secondTemp=createFirstNodeTemplate boxFn second "name" "firstlist" "numbers"
-//    let firststartNode= FirstNode(firstTemp)
-//    let secondstartNode=FirstNode(secondTemp)
-    let multi= MiddleNode(multiNode,[||])
-    let div2=MiddleNode(div2Node,[||])
-    let prnt= MiddleNode(prntNode,[||])
+    let firstTemp=DocumentGetter.CreateFirstNodeTemplate( first, "name", "numbers" )
+    let secondTemp=DocumentGetter.CreateFirstNodeTemplate(second,  "name",  "numbers")
+    let firststartNode= MiddleNode(firstTemp,[|20|]) 
+    let secondstartNode=MiddleNode(secondTemp,[|[2;4;6;8;27;84]|])
+    let multi= MiddleNode(multiNode)
+    let div2=MiddleNode(div2Node)
+    let prnt= MiddleNode(prntNode)
 
     let jn=VisProg.Shared.Node.Funcs.join
-    //firststartNode|>jn 0 multi
-//    secondstartNode|>jn 0 div2
+    firststartNode|>jn 0 multi
+    secondstartNode|>jn 0 div2
     div2|>jn 1 multi
     multi|>jn 0 prnt
-
-    //VisProg.Executer.runner2 [firststartNode;secondstartNode]
+ 
+    VisProg.Executer.runner2 [firststartNode;secondstartNode]
     ()
     
 
